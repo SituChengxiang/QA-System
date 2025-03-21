@@ -40,6 +40,13 @@ func GetAdminByID(id int) (*model.User, error) {
 	return user, nil
 }
 
+// GetUserEmailByID 根据用户ID获取用户邮箱
+func GetUserEmailByID(id int) (string, error) {
+	user, err := d.GetUserByID(ctx, id)
+	email := user.NotifyEmail
+	return email, err
+}
+
 // IsAdminExist 判断管理员是否存在
 func IsAdminExist(username string) error {
 	_, err := d.GetUserByUsername(ctx, username)
@@ -647,6 +654,12 @@ func HandleDownloadFile(answers dao.AnswersResonse, survey *model.Survey) (strin
 func UpdateAdminPassword(id int, password string) error {
 	encryptedPassword := utils.AesEncrypt(password)
 	err := d.UpdateUserPassword(ctx, id, encryptedPassword)
+	return err
+}
+
+// UpdateAdminEmail 更新管理员邮箱
+func UpdateAdminEmail(id int, email string) error {
+	err := d.UpdateUserEmail(ctx, id, email)
 	return err
 }
 

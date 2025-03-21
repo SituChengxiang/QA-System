@@ -10,6 +10,7 @@ import (
 	"QA-System/internal/pkg/utils"
 	"QA-System/internal/router"
 	"QA-System/internal/service"
+	"QA-System/pkg/extension"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -30,6 +31,18 @@ func main() {
 		zap.L().Fatal(err.Error())
 	}
 
+	// 初始化插件管理器并加载插件
+	// pm := extension.NewPluginManager(zap.NewExample())
+	pm := extension.GetDefaultManager()
+	_, err := pm.LoadPlugins()
+	if err != nil {
+		zap.L().Error("Error loading plugins", zap.Error(err))
+	}
+	err = pm.ExecutePlugins()
+	if err != nil {
+		zap.L().Error("Error executing plugins", zap.Error(err))
+	}
+
 	// 初始化gin
 	r := gin.Default()
 	r.Use(middleware.ErrHandler())
@@ -39,7 +52,7 @@ func main() {
 	r.Static("public/xlsx", "./public/xlsx")
 	session.Init(r)
 	router.Init(r)
-	err := r.Run(":" + global.Config.GetString("server.port"))
+	err = r.Run(":" + global.Config.GetString("server.port"))
 	if err != nil {
 		zap.L().Fatal("Failed to start the server:" + err.Error())
 	}
