@@ -14,10 +14,10 @@ import (
 )
 
 // GetUserLimit 获取用户的对该问卷的访问次数
-func GetUserLimit(c context.Context, stu_id string, sid int, durationType string) (int, error) {
+func GetUserLimit(c context.Context, stu_id string, sid int, durationType string) (uint, error) {
 	// 从 redis 中获取用户的对该问卷的访问次数, durationtype为dailyLimit或sumLimit
 	item := "survey:" + strconv.Itoa(sid) + ":duration_type:" + durationType + ":stu_id:" + stu_id
-	var limit int
+	var limit uint
 	err := redis.RedisClient.Get(c, item).Scan(&limit)
 	return limit, err
 }
@@ -65,7 +65,7 @@ func SetUserSumLimit(c context.Context, stuId string, sid int, sumLimit int, dur
 }
 
 // CheckLimit 判断限制次数
-func CheckLimit(c *gin.Context, stuId string, survey *model.Survey, key string, limitVal int) (bool, error) {
+func CheckLimit(c *gin.Context, stuId string, survey *model.Survey, key string, limitVal uint) (bool, error) {
 	if limitVal == 0 {
 		return false, nil
 	}

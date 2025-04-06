@@ -18,6 +18,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"github.com/zjutjh/WeJH-SDK/oauth"
 	"github.com/zjutjh/WeJH-SDK/oauth/oauthException"
 	"go.uber.org/zap"
@@ -115,7 +116,7 @@ func SubmitSurvey(c *gin.Context) {
 			return
 		}
 		// 统一检查总投票次数和每日投票次数
-		if flagSum, err = service.CheckLimit(c, stuId, survey, "sumLimit", int(survey.SumLimit)); err != nil {
+		if flagSum, err = service.CheckLimit(c, stuId, survey, "sumLimit", survey.SumLimit); err != nil {
 			if err.Error() == "sumLimit已达上限" {
 				code.AbortWithException(c, code.VoteSumLimitError, errors.New("总投票次数已达上限"))
 			} else {
@@ -124,7 +125,7 @@ func SubmitSurvey(c *gin.Context) {
 			return
 		}
 
-		if flagDay, err = service.CheckLimit(c, stuId, survey, "dailyLimit", int(survey.DailyLimit)); err != nil {
+		if flagDay, err = service.CheckLimit(c, stuId, survey, "dailyLimit", survey.DailyLimit); err != nil {
 			if err.Error() == "dailyLimit已达上限" {
 				code.AbortWithException(c, code.VoteLimitError, errors.New("单日投票次数已达上限"))
 			} else {
@@ -133,7 +134,9 @@ func SubmitSurvey(c *gin.Context) {
 			return
 		}
 	}
-	err = service.SubmitSurvey(data.ID, data.QuestionsList, time.Now().Format("2006-01-02 15:04:05"))
+
+	submitTime := time.Now().Format(time.DateTime)
+	err = service.SubmitSurvey(data.ID, data.QuestionsList, submitTime)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
@@ -160,7 +163,9 @@ func SubmitSurvey(c *gin.Context) {
 			return
 		}
 	}
-	utils.JsonSuccessResponse(c, nil)
+	utils.JsonSuccessResponse(c, gin.H{
+		"time": submitTime,
+	})
 }
 
 type getSurveyData struct {
@@ -346,6 +351,7 @@ func UploadFile(c *gin.Context) {
 type oauthData struct {
 	StudentID string `json:"stu_id" binding:"required"`
 	Password  string `json:"password" binding:"required"`
+	ID        int    `json:"id" binding:"required"`
 }
 
 // Oauth 统一验证
@@ -380,7 +386,27 @@ func Oauth(c *gin.Context) {
 		code.AbortWithException(c, code.ServerError, errors.New("统一验证失败原因: token生成失败"))
 		return
 	}
-	utils.JsonSuccessResponse(c, gin.H{"token": token})
+	survey, err := service.GetSurveyByID(data.ID)
+	if err != nil {
+		code.AbortWithException(c, code.ServerError, err)
+		return
+	}
+	dailyLimit, err := service.GetUserLimit(c, data.StudentID, survey.ID, "dailyLimit")
+	if err != nil && !errors.Is(err, redis.Nil) {
+		code.AbortWithException(c, code.ServerError, err)
+		return
+	}
+	sumLimit, err := service.GetUserLimit(c, data.StudentID, survey.ID, "sumLimit")
+	if err != nil && !errors.Is(err, redis.Nil) {
+		code.AbortWithException(c, code.ServerError, err)
+		return
+	}
+
+	utils.JsonSuccessResponse(c, gin.H{
+		"token":      token,
+		"daily_left": survey.DailyLimit - dailyLimit,
+		"sum_left":   survey.SumLimit - sumLimit,
+	})
 }
 
 type getOptionCount struct {
