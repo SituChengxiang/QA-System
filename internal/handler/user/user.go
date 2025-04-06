@@ -25,7 +25,7 @@ import (
 )
 
 type submitSurveyData struct {
-	ID            int                 `json:"id" binding:"required"`
+	UUID          string              `json:"uuid" binding:"required"`
 	Token         string              `json:"token"`
 	QuestionsList []dao.QuestionsList `json:"questions_list"`
 }
@@ -39,7 +39,7 @@ func SubmitSurvey(c *gin.Context) {
 		return
 	}
 	// 判断问卷问题和答卷问题数目是否一致
-	survey, err := service.GetSurveyByID(data.ID)
+	survey, err := service.GetSurveyByUUID(data.UUID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
@@ -53,7 +53,7 @@ func SubmitSurvey(c *gin.Context) {
 		}
 	}
 	stuId := userInfo.StudentID
-	questions, err := service.GetQuestionsBySurveyID(survey.ID)
+	questions, err := service.GetQuestionsBySurveyID(survey.UUID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
@@ -83,7 +83,7 @@ func SubmitSurvey(c *gin.Context) {
 			code.AbortWithException(c, code.ServerError, err)
 			return
 		}
-		if question.SurveyID != survey.ID {
+		if question.SurveyID != survey.UUID {
 			code.AbortWithException(c, code.ServerError,
 				errors.New("问题"+strconv.Itoa(question.SerialNum)+"不属于该问卷"))
 			return
@@ -136,7 +136,7 @@ func SubmitSurvey(c *gin.Context) {
 	}
 
 	submitTime := time.Now().Format(time.DateTime)
-	err = service.SubmitSurvey(data.ID, data.QuestionsList, submitTime)
+	err = service.SubmitSurvey(data.UUID, data.QuestionsList, submitTime)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
@@ -144,21 +144,21 @@ func SubmitSurvey(c *gin.Context) {
 
 	if survey.Verify {
 		if survey.DailyLimit > 0 {
-			err := service.UpdateVoteLimit(c, stuId, survey.ID, flagDay, "dailyLimit")
+			err := service.UpdateVoteLimit(c, stuId, survey.UUID, flagDay, "dailyLimit")
 			if err != nil {
 				code.AbortWithException(c, code.ServerError, err)
 				return
 			}
 		}
 		if survey.SumLimit > 0 {
-			err := service.UpdateVoteLimit(c, stuId, survey.ID, flagSum, "sumLimit")
+			err := service.UpdateVoteLimit(c, stuId, survey.UUID, flagSum, "sumLimit")
 			if err != nil {
 				code.AbortWithException(c, code.ServerError, err)
 				return
 			}
 		}
 		// 记录授权
-		if err = service.CreateOauthRecord(userInfo, time.Now(), data.ID); err != nil {
+		if err = service.CreateOauthRecord(userInfo, time.Now(), data.UUID); err != nil {
 			code.AbortWithException(c, code.ServerError, err)
 			return
 		}
@@ -169,7 +169,7 @@ func SubmitSurvey(c *gin.Context) {
 }
 
 type getSurveyData struct {
-	ID int `form:"id" binding:"required"`
+	UUID string `form:"uuid" binding:"required"`
 }
 
 // GetSurvey 用户获取问卷
@@ -181,7 +181,7 @@ func GetSurvey(c *gin.Context) {
 		return
 	}
 	// 获取问卷
-	survey, err := service.GetSurveyByID(data.ID)
+	survey, err := service.GetSurveyByUUID(data.UUID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
@@ -201,7 +201,7 @@ func GetSurvey(c *gin.Context) {
 		return
 	}
 	// 获取相应的问题
-	questions, err := service.GetQuestionsBySurveyID(survey.ID)
+	questions, err := service.GetQuestionsBySurveyID(survey.UUID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
@@ -260,7 +260,7 @@ func GetSurvey(c *gin.Context) {
 		"verify":     survey.Verify,
 	}
 	response := map[string]any{
-		"id":          survey.ID,
+		"uuid":        survey.UUID,
 		"status":      survey.Status,
 		"survey_type": survey.Type,
 		"base_config": baseConfigResponse,
@@ -351,7 +351,7 @@ func UploadFile(c *gin.Context) {
 type oauthData struct {
 	StudentID string `json:"stu_id" binding:"required"`
 	Password  string `json:"password" binding:"required"`
-	ID        int    `json:"id" binding:"required"`
+	UUID      string `json:"uuid" binding:"required"`
 }
 
 // Oauth 统一验证
@@ -386,17 +386,17 @@ func Oauth(c *gin.Context) {
 		code.AbortWithException(c, code.ServerError, errors.New("统一验证失败原因: token生成失败"))
 		return
 	}
-	survey, err := service.GetSurveyByID(data.ID)
+	survey, err := service.GetSurveyByUUID(data.UUID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
 	}
-	dailyLimit, err := service.GetUserLimit(c, data.StudentID, survey.ID, "dailyLimit")
+	dailyLimit, err := service.GetUserLimit(c, data.StudentID, survey.UUID, "dailyLimit")
 	if err != nil && !errors.Is(err, redis.Nil) {
 		code.AbortWithException(c, code.ServerError, err)
 		return
 	}
-	sumLimit, err := service.GetUserLimit(c, data.StudentID, survey.ID, "sumLimit")
+	sumLimit, err := service.GetUserLimit(c, data.StudentID, survey.UUID, "sumLimit")
 	if err != nil && !errors.Is(err, redis.Nil) {
 		code.AbortWithException(c, code.ServerError, err)
 		return
@@ -431,7 +431,7 @@ func GetSurveyStatistics(c *gin.Context) {
 		code.AbortWithException(c, code.ParamError, err)
 		return
 	}
-	survey, err := service.GetSurveyByID(data.ID)
+	survey, err := service.GetSurveyByUUID(data.UUID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
@@ -440,13 +440,13 @@ func GetSurveyStatistics(c *gin.Context) {
 		code.AbortWithException(c, code.SurveyTypeError, errors.New("问卷为调研问卷"))
 		return
 	}
-	answerSheets, err := service.GetSurveyAnswersBySurveyID(data.ID)
+	answerSheets, err := service.GetSurveyAnswersBySurveyID(data.UUID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
 	}
 
-	questions, err := service.GetQuestionsBySurveyID(data.ID)
+	questions, err := service.GetQuestionsBySurveyID(data.UUID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
