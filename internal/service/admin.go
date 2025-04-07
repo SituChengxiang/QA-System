@@ -208,15 +208,24 @@ func DeleteSurvey(sid string) error {
 	}
 	urlHost := GetConfigUrl()
 	for _, img := range imgs {
-		err = os.Remove("./public/static/" + strings.TrimPrefix(img, urlHost+"/public/static/"))
-		if err != nil {
-			return err
+		path := "./public/static/" + strings.TrimPrefix(img, urlHost+"/public/static/")
+		info, statErr := os.Stat(path)
+		if statErr == nil && !info.IsDir() {
+			err = os.Remove(path)
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
 		}
 	}
+
 	for _, file := range files {
-		err = os.Remove("./public/file/" + strings.TrimPrefix(file, urlHost+"/public/file/"))
-		if err != nil {
-			return err
+		path := "./public/file/" + strings.TrimPrefix(file, urlHost+"/public/file/")
+		info, statErr := os.Stat(path)
+		if statErr == nil && !info.IsDir() {
+			err = os.Remove(path)
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
 		}
 	}
 	// 删除答卷
