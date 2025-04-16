@@ -14,7 +14,7 @@ import (
 
 type createPermissionData struct {
 	UserName string `json:"username" binding:"required"`
-	SurveyID string `json:"survey_id" binding:"required"`
+	SurveyID int    `json:"survey_id" binding:"required"`
 }
 
 // CreatePermission 创建权限
@@ -40,7 +40,7 @@ func CreatePermission(c *gin.Context) {
 		code.AbortWithException(c, code.ServerError, err)
 		return
 	}
-	survey, err := service.GetSurveyByUUID(data.SurveyID)
+	survey, err := service.GetSurveyByID(data.SurveyID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
@@ -52,7 +52,7 @@ func CreatePermission(c *gin.Context) {
 	err = service.CheckPermission(user.ID, data.SurveyID)
 	if err == nil {
 		code.AbortWithException(c, code.PermissionExist,
-			fmt.Errorf("用户%d已有问卷%s权限", user.ID, data.SurveyID))
+			fmt.Errorf("用户%d已有问卷%d权限", user.ID, data.SurveyID))
 		return
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		code.AbortWithException(c, code.ServerError, err)
@@ -69,7 +69,7 @@ func CreatePermission(c *gin.Context) {
 
 type deletePermissionData struct {
 	UserName string `form:"username" binding:"required"`
-	SurveyID string `form:"survey_id" binding:"required"`
+	SurveyID int    `form:"survey_id" binding:"required"`
 }
 
 // DeletePermission 删除权限
@@ -95,7 +95,7 @@ func DeletePermission(c *gin.Context) {
 		code.AbortWithException(c, code.ServerError, err)
 		return
 	}
-	survey, err := service.GetSurveyByUUID(data.SurveyID)
+	survey, err := service.GetSurveyByID(data.SurveyID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return

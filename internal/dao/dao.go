@@ -32,17 +32,17 @@ type Daos interface {
 	CreateUser(ctx context.Context, user *model.User) error
 
 	SaveAnswerSheet(ctx context.Context, answerSheet AnswerSheet) error
-	GetAnswerSheetBySurveyID(ctx context.Context, surveyID string, pageNum int, pageSize int) (
+	GetAnswerSheetBySurveyID(ctx context.Context, surveyID int, pageNum int, pageSize int) (
 		[]AnswerSheet, *int64, error)
-	DeleteAnswerSheetBySurveyID(ctx context.Context, surveyID string) error
+	DeleteAnswerSheetBySurveyID(ctx context.Context, surveyID int) error
 	DeleteAnswerSheetByAnswerID(ctx context.Context, AnswerID primitive.ObjectID) error
 	GetAnswerSheetByAnswerID(ctx context.Context, AnswerID primitive.ObjectID) (AnswerSheet, error)
 
-	CreateManage(ctx context.Context, id int, surveyID string) error
-	DeleteManage(ctx context.Context, id int, surveyID string) error
-	DeleteManageBySurveyID(ctx context.Context, surveyID string) error
-	CheckManage(ctx context.Context, id int, surveyID string) error
-	GetManageByUIDAndSID(ctx context.Context, uid int, sid string) (*model.Manage, error)
+	CreateManage(ctx context.Context, id int, surveyID int) error
+	DeleteManage(ctx context.Context, id int, surveyID int) error
+	DeleteManageBySurveyID(ctx context.Context, surveyID int) error
+	CheckManage(ctx context.Context, id int, surveyID int) error
+	GetManageByUIDAndSID(ctx context.Context, uid int, sid int) (*model.Manage, error)
 	GetManageByUserID(ctx context.Context, uid int) ([]model.Manage, error)
 
 	CreateOption(ctx context.Context, option *model.Option) error
@@ -50,20 +50,20 @@ type Daos interface {
 	DeleteOption(ctx context.Context, optionID int) error
 
 	CreateQuestion(ctx context.Context, question *model.Question) error
-	GetQuestionsBySurveyID(ctx context.Context, surveyID string) ([]model.Question, error)
+	GetQuestionsBySurveyID(ctx context.Context, surveyID int) ([]model.Question, error)
 	GetQuestionByID(ctx context.Context, questionID int) (*model.Question, error)
 	DeleteQuestion(ctx context.Context, questionID int) error
-	DeleteQuestionBySurveyID(ctx context.Context, surveyID string) error
+	DeleteQuestionBySurveyID(ctx context.Context, surveyID int) error
 
 	CreateSurvey(ctx context.Context, survey *model.Survey) error
-	GetSurveyByID(ctx context.Context, surveyID string) (*model.Survey, error)
+	GetSurveyByID(ctx context.Context, surveyID int) (*model.Survey, error)
 	GetSurveyByTitle(ctx context.Context, title string, num, size int) ([]model.Survey, *int64, error)
-	DeleteSurvey(ctx context.Context, surveyID string) error
-	UpdateSurveyStatus(ctx context.Context, surveyID string, status int) error
-	UpdateSurvey(ctx context.Context, uuid string, title, desc, img string, deadline time.Time) error
+	DeleteSurvey(ctx context.Context, surveyID int) error
+	UpdateSurveyStatus(ctx context.Context, surveyID int, status int) error
+	UpdateSurvey(ctx context.Context, id int, title, desc, img string, deadline time.Time) error
 	GetAllSurveyByUserID(ctx context.Context, userId int) ([]model.Survey, error)
-	IncreaseSurveyNum(ctx context.Context, sid string) error
+	IncreaseSurveyNum(ctx context.Context, sid int) error
 
-	SaveRecordSheet(ctx context.Context, answerSheet RecordSheet, sid string) error
-	DeleteRecordSheets(ctx context.Context, surveyID string) error
+	SaveRecordSheet(ctx context.Context, answerSheet RecordSheet, sid int) error
+	DeleteRecordSheets(ctx context.Context, surveyID int) error
 }
