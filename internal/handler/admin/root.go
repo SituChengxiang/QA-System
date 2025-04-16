@@ -14,7 +14,7 @@ import (
 
 type createPermissionData struct {
 	UserName string `json:"username" binding:"required"`
-	SurveyID int    `json:"survey_id" binding:"required"`
+	SurveyID int64  `json:"survey_id" binding:"required"`
 }
 
 // CreatePermission 创建权限
@@ -69,7 +69,7 @@ func CreatePermission(c *gin.Context) {
 
 type deletePermissionData struct {
 	UserName string `form:"username" binding:"required"`
-	SurveyID int    `form:"survey_id" binding:"required"`
+	SurveyID int64  `form:"survey_id" binding:"required"`
 }
 
 // DeletePermission 删除权限

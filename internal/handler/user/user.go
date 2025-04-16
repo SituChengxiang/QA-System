@@ -26,7 +26,7 @@ import (
 )
 
 type submitSurveyData struct {
-	ID            int                 `json:"id" binding:"required"`
+	ID            int64               `json:"id" binding:"required"`
 	Token         string              `json:"token"`
 	QuestionsList []dao.QuestionsList `json:"questions_list"`
 }
@@ -170,7 +170,7 @@ func SubmitSurvey(c *gin.Context) {
 }
 
 type getSurveyData struct {
-	ID int `form:"id" binding:"required"`
+	ID int64 `form:"id" binding:"required"`
 }
 
 // GetSurvey 用户获取问卷
@@ -352,7 +352,7 @@ func UploadFile(c *gin.Context) {
 type oauthData struct {
 	StudentID string `json:"stu_id" binding:"required"`
 	Password  string `json:"password" binding:"required"`
-	ID        int    `json:"id" binding:"required"`
+	ID        int64  `json:"id" binding:"required"`
 }
 
 // Oauth 统一验证

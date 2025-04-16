@@ -156,8 +156,8 @@ func CreateSurvey(c *gin.Context) {
 }
 
 type updateSurveyStatusData struct {
-	ID     int `json:"id" binding:"required"`
-	Status int `json:"status" binding:"required,oneof=1 2"`
+	ID     int64 `json:"id" binding:"required"`
+	Status int   `json:"status" binding:"required,oneof=1 2"`
 }
 
 // UpdateSurveyStatus 修改问卷状态
@@ -256,7 +256,7 @@ func UpdateSurveyStatus(c *gin.Context) {
 }
 
 type updateSurveyData struct {
-	ID             int                `json:"id" binding:"required"`
+	ID             int64              `json:"id" binding:"required"`
 	SurveyType     uint               `json:"survey_type"` // 问卷类型 0:调研 1:投票
 	BaseConfig     dao.BaseConfig     `json:"base_config"` // 基本配置
 	QuestionConfig dao.QuestionConfig `json:"ques_config"` // 问题设置
@@ -368,7 +368,7 @@ func UpdateSurvey(c *gin.Context) {
 }
 
 type deleteSurveyData struct {
-	ID int `form:"id" binding:"required"`
+	ID int64 `form:"id" binding:"required"`
 }
 
 // DeleteSurvey 删除问卷
@@ -415,7 +415,7 @@ func DeleteSurvey(c *gin.Context) {
 }
 
 type getSurveyAnswersData struct {
-	ID       int    `form:"id" binding:"required"`
+	ID       int64  `form:"id" binding:"required"`
 	Text     string `form:"text"`
 	Unique   bool   `form:"unique"`
 	PageNum  int    `form:"page_num" binding:"required"`
@@ -528,7 +528,7 @@ func GetAllSurvey(c *gin.Context) {
 }
 
 type getSurveyData struct {
-	ID int `form:"id" binding:"required"`
+	ID int64 `form:"id" binding:"required"`
 }
 
 // GetSurvey 管理员获取问卷题面
@@ -628,7 +628,7 @@ func GetSurvey(c *gin.Context) {
 }
 
 type downloadFileData struct {
-	ID int `form:"id" binding:"required"`
+	ID int64 `form:"id" binding:"required"`
 }
 
 // DownloadFile 下载
@@ -671,9 +671,9 @@ func DownloadFile(c *gin.Context) {
 }
 
 type getSurveyStatisticsData struct {
-	ID       int `form:"id" binding:"required"`
-	PageNum  int `form:"page_num" binding:"required"`
-	PageSize int `form:"page_size" binding:"required"`
+	ID       int64 `form:"id" binding:"required"`
+	PageNum  int   `form:"page_num" binding:"required"`
+	PageSize int   `form:"page_size" binding:"required"`
 }
 
 type getOptionCount struct {

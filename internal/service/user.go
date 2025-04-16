@@ -24,13 +24,13 @@ import (
 )
 
 // GetSurveyByID 根据ID获取问卷
-func GetSurveyByID(id int) (*model.Survey, error) {
+func GetSurveyByID(id int64) (*model.Survey, error) {
 	survey, err := d.GetSurveyByID(ctx, id)
 	return survey, err
 }
 
 // GetQuestionsBySurveyID 根据问卷ID获取问题
-func GetQuestionsBySurveyID(sid int) ([]model.Question, error) {
+func GetQuestionsBySurveyID(sid int64) ([]model.Question, error) {
 	var questions []model.Question
 	questions, err := d.GetQuestionsBySurveyID(ctx, sid)
 	return questions, err
@@ -51,7 +51,7 @@ func GetQuestionByID(id int) (*model.Question, error) {
 }
 
 // SubmitSurvey 提交问卷
-func SubmitSurvey(sid int, data []dao.QuestionsList, t string) error {
+func SubmitSurvey(sid int64, data []dao.QuestionsList, t string) error {
 	var answerSheet dao.AnswerSheet
 	answerSheet.SurveyID = sid
 	answerSheet.Time = t
@@ -80,7 +80,7 @@ func SubmitSurvey(sid int, data []dao.QuestionsList, t string) error {
 }
 
 // CreateOauthRecord 创建一条统一验证记录
-func CreateOauthRecord(userInfo oauth.UserInfo, t time.Time, sid int) error {
+func CreateOauthRecord(userInfo oauth.UserInfo, t time.Time, sid int64) error {
 	sheet := dao.RecordSheet{
 		College:      userInfo.College,
 		Name:         userInfo.Name,
@@ -134,7 +134,7 @@ func SaveFile(reader io.Reader, path string) error {
 }
 
 // UpdateVoteLimit 更新投票限制
-func UpdateVoteLimit(c *gin.Context, stuId string, surveyID int, isNew bool, durationType string) error {
+func UpdateVoteLimit(c *gin.Context, stuId string, surveyID int64, isNew bool, durationType string) error {
 	if isNew {
 		if durationType == "dailyLimit" {
 			return SetUserLimit(c, stuId, surveyID, 1, durationType)
