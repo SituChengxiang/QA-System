@@ -156,8 +156,8 @@ func CreateSurvey(c *gin.Context) {
 }
 
 type updateSurveyStatusData struct {
-	UUID   string `json:"uuid" binding:"required"`
-	Status int    `json:"status" binding:"required,oneof=1 2"`
+	ID     int64 `json:"id" binding:"required"`
+	Status int   `json:"status" binding:"required,oneof=1 2"`
 }
 
 // UpdateSurveyStatus 修改问卷状态
@@ -175,14 +175,14 @@ func UpdateSurveyStatus(c *gin.Context) {
 		return
 	}
 	// 获取问卷
-	survey, err := service.GetSurveyByUUID(data.UUID)
+	survey, err := service.GetSurveyByID(data.ID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
 	}
 	// 判断权限
 	if (user.AdminType != 2) && (user.AdminType != 1 || survey.UserID != user.ID) &&
-		!service.UserInManage(user.ID, survey.UUID) {
+		!service.UserInManage(user.ID, survey.ID) {
 		code.AbortWithException(c, code.NoPermission, errors.New(user.Username+"无权限"))
 		return
 	}
@@ -197,7 +197,7 @@ func UpdateSurveyStatus(c *gin.Context) {
 			code.AbortWithException(c, code.SurveyIncomplete, errors.New("问卷信息填写不完整"))
 			return
 		}
-		questions, err := service.GetQuestionsBySurveyID(survey.UUID)
+		questions, err := service.GetQuestionsBySurveyID(survey.ID)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			code.AbortWithException(c, code.SurveyIncomplete, errors.New("问卷问题不存在"))
 			return
@@ -247,7 +247,7 @@ func UpdateSurveyStatus(c *gin.Context) {
 		}
 	}
 	// 修改问卷状态
-	err = service.UpdateSurveyStatus(data.UUID, data.Status)
+	err = service.UpdateSurveyStatus(data.ID, data.Status)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
@@ -256,7 +256,7 @@ func UpdateSurveyStatus(c *gin.Context) {
 }
 
 type updateSurveyData struct {
-	UUID           string             `json:"uuid" binding:"required"`
+	ID             int64              `json:"id" binding:"required"`
 	SurveyType     uint               `json:"survey_type"` // 问卷类型 0:调研 1:投票
 	BaseConfig     dao.BaseConfig     `json:"base_config"` // 基本配置
 	QuestionConfig dao.QuestionConfig `json:"ques_config"` // 问题设置
@@ -277,14 +277,14 @@ func UpdateSurvey(c *gin.Context) {
 		return
 	}
 	// 获取问卷
-	survey, err := service.GetSurveyByUUID(data.UUID)
+	survey, err := service.GetSurveyByID(data.ID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
 	}
 	// 判断权限
 	if (user.AdminType != 2) && (user.AdminType != 1 || survey.UserID != user.ID) &&
-		!service.UserInManage(user.ID, survey.UUID) {
+		!service.UserInManage(user.ID, survey.ID) {
 		code.AbortWithException(c, code.NoPermission, errors.New(user.Username+"无权限"))
 		return
 	}
@@ -357,7 +357,7 @@ func UpdateSurvey(c *gin.Context) {
 		}
 	}
 	// 修改问卷
-	err = service.UpdateSurvey(data.UUID, data.QuestionConfig.QuestionList, data.SurveyType, data.BaseConfig.DailyLimit,
+	err = service.UpdateSurvey(data.ID, data.QuestionConfig.QuestionList, data.SurveyType, data.BaseConfig.DailyLimit,
 		data.BaseConfig.SumLimit, data.BaseConfig.Verify, data.QuestionConfig.Desc, data.QuestionConfig.Title, ddlTime,
 		startTime)
 	if err != nil {
@@ -368,7 +368,7 @@ func UpdateSurvey(c *gin.Context) {
 }
 
 type deleteSurveyData struct {
-	UUID string `form:"uuid" binding:"required"`
+	ID int64 `form:"id" binding:"required"`
 }
 
 // DeleteSurvey 删除问卷
@@ -386,7 +386,7 @@ func DeleteSurvey(c *gin.Context) {
 		return
 	}
 	// 获取问卷
-	survey, err := service.GetSurveyByUUID(data.UUID)
+	survey, err := service.GetSurveyByID(data.ID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		code.AbortWithException(c, code.SurveyNotExist, errors.New("问卷不存在"))
 		return
@@ -396,17 +396,17 @@ func DeleteSurvey(c *gin.Context) {
 	}
 	// 判断权限
 	if (user.AdminType != 2) && (user.AdminType != 1 || survey.UserID != user.ID) &&
-		!service.UserInManage(user.ID, survey.UUID) {
+		!service.UserInManage(user.ID, survey.ID) {
 		code.AbortWithException(c, code.NoPermission, errors.New(user.Username+"无权限"))
 		return
 	}
 	// 删除问卷
-	err = service.DeleteSurvey(data.UUID)
+	err = service.DeleteSurvey(data.ID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
 	}
-	err = service.DeleteOauthRecord(data.UUID)
+	err = service.DeleteOauthRecord(data.ID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
@@ -415,7 +415,7 @@ func DeleteSurvey(c *gin.Context) {
 }
 
 type getSurveyAnswersData struct {
-	UUID     string `form:"uuid" binding:"required"`
+	ID       int64  `form:"id" binding:"required"`
 	Text     string `form:"text"`
 	Unique   bool   `form:"unique"`
 	PageNum  int    `form:"page_num" binding:"required"`
@@ -437,7 +437,7 @@ func GetSurveyAnswers(c *gin.Context) {
 		return
 	}
 	// 获取问卷
-	survey, err := service.GetSurveyByUUID(data.UUID)
+	survey, err := service.GetSurveyByID(data.ID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		code.AbortWithException(c, code.SurveyNotExist, errors.New("问卷不存在"))
 		return
@@ -447,13 +447,13 @@ func GetSurveyAnswers(c *gin.Context) {
 	}
 	// 判断权限
 	if (user.AdminType != 2) && (user.AdminType != 1 || survey.UserID != user.ID) &&
-		!service.UserInManage(user.ID, survey.UUID) {
+		!service.UserInManage(user.ID, survey.ID) {
 		code.AbortWithException(c, code.NoPermission, errors.New(user.Username+"无权限"))
 		return
 	}
 	// 获取问卷收集数据
 	var num *int64
-	answers, num, err := service.GetSurveyAnswers(data.UUID, data.PageNum, data.PageSize, data.Text, data.Unique)
+	answers, num, err := service.GetSurveyAnswers(data.ID, data.PageNum, data.PageSize, data.Text, data.Unique)
 	if err != nil {
 		if err.Error() == "页数超出范围" {
 			code.AbortWithException(c, code.PageBeyondError, err)
@@ -509,7 +509,7 @@ func GetAllSurvey(c *gin.Context) {
 			return
 		}
 		for _, manage := range managedSurveys {
-			managedSurvey, err := service.GetSurveyByUUID(manage.SurveyID)
+			managedSurvey, err := service.GetSurveyByID(manage.SurveyID)
 			if err != nil {
 				code.AbortWithException(c, code.ServerError, err)
 				return
@@ -528,7 +528,7 @@ func GetAllSurvey(c *gin.Context) {
 }
 
 type getSurveyData struct {
-	UUID string `form:"uuid" binding:"required"`
+	ID int64 `form:"id" binding:"required"`
 }
 
 // GetSurvey 管理员获取问卷题面
@@ -545,19 +545,19 @@ func GetSurvey(c *gin.Context) {
 		return
 	}
 	// 获取问卷
-	survey, err := service.GetSurveyByUUID(data.UUID)
+	survey, err := service.GetSurveyByID(data.ID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
 	}
 	// 判断权限
 	if (user.AdminType != 2) && (user.AdminType != 1 || survey.UserID != user.ID) &&
-		!service.UserInManage(user.ID, survey.UUID) {
+		!service.UserInManage(user.ID, survey.ID) {
 		code.AbortWithException(c, code.NoPermission, errors.New(user.Username+"无权限"))
 		return
 	}
 	// 获取相应的问题
-	questions, err := service.GetQuestionsBySurveyID(survey.UUID)
+	questions, err := service.GetQuestionsBySurveyID(survey.ID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
@@ -617,7 +617,7 @@ func GetSurvey(c *gin.Context) {
 		"verify":     survey.Verify,
 	}
 	response := map[string]any{
-		"uuid":        survey.UUID,
+		"id":          survey.ID,
 		"status":      survey.Status,
 		"survey_type": survey.Type,
 		"base_config": baseConfigResponse,
@@ -628,7 +628,7 @@ func GetSurvey(c *gin.Context) {
 }
 
 type downloadFileData struct {
-	UUID string `form:"uuid" binding:"required"`
+	ID int64 `form:"id" binding:"required"`
 }
 
 // DownloadFile 下载
@@ -645,19 +645,19 @@ func DownloadFile(c *gin.Context) {
 		return
 	}
 	// 获取问卷
-	survey, err := service.GetSurveyByUUID(data.UUID)
+	survey, err := service.GetSurveyByID(data.ID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
 	}
 	// 判断权限
 	if (user.AdminType != 2) && (user.AdminType != 1 || survey.UserID != user.ID) &&
-		!service.UserInManage(user.ID, survey.UUID) {
+		!service.UserInManage(user.ID, survey.ID) {
 		code.AbortWithException(c, code.NoPermission, errors.New(user.Username+"无权限"))
 		return
 	}
 	// 获取数据
-	answers, err := service.GetAllSurveyAnswers(data.UUID)
+	answers, err := service.GetAllSurveyAnswers(data.ID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
@@ -671,9 +671,9 @@ func DownloadFile(c *gin.Context) {
 }
 
 type getSurveyStatisticsData struct {
-	UUID     string `form:"uuid" binding:"required"`
-	PageNum  int    `form:"page_num" binding:"required"`
-	PageSize int    `form:"page_size" binding:"required"`
+	ID       int64 `form:"id" binding:"required"`
+	PageNum  int   `form:"page_num" binding:"required"`
+	PageSize int   `form:"page_size" binding:"required"`
 }
 
 type getOptionCount struct {
@@ -703,25 +703,25 @@ func GetSurveyStatistics(c *gin.Context) {
 		return
 	}
 
-	survey, err := service.GetSurveyByUUID(data.UUID)
+	survey, err := service.GetSurveyByID(data.ID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
 	}
 
 	if (user.AdminType != 2) && (user.AdminType != 1 || survey.UserID != user.ID) &&
-		!service.UserInManage(user.ID, survey.UUID) {
+		!service.UserInManage(user.ID, survey.ID) {
 		code.AbortWithException(c, code.NoPermission, errors.New(user.Username+"无权限"))
 		return
 	}
 
-	answersheets, err := service.GetSurveyAnswersBySurveyID(data.UUID)
+	answersheets, err := service.GetSurveyAnswersBySurveyID(data.ID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
 	}
 
-	questions, err := service.GetQuestionsBySurveyID(data.UUID)
+	questions, err := service.GetQuestionsBySurveyID(data.ID)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return

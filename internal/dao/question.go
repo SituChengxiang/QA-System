@@ -60,10 +60,10 @@ func (d *Dao) CreateQuestion(ctx context.Context, question model.Question) (mode
 	return question, err
 }
 
-// GetQuestionsBySurveyID 根据问卷UUID获取问题列表
-func (d *Dao) GetQuestionsBySurveyID(ctx context.Context, surveyID string) ([]model.Question, error) {
+// GetQuestionsBySurveyID 根据问卷ID获取问题列表
+func (d *Dao) GetQuestionsBySurveyID(ctx context.Context, surveyID int64) ([]model.Question, error) {
 	var questions []model.Question
-	cacheData, err := redis.RedisClient.Get(ctx, fmt.Sprintf("questions:sid:%s", surveyID)).Result()
+	cacheData, err := redis.RedisClient.Get(ctx, fmt.Sprintf("questions:sid:%d", surveyID)).Result()
 	if err == nil && cacheData != "" {
 		// 反序列化 JSON 为结构体
 		if err := json.Unmarshal([]byte(cacheData), &questions); err == nil {
@@ -77,7 +77,7 @@ func (d *Dao) GetQuestionsBySurveyID(ctx context.Context, surveyID string) ([]mo
 	// 序列化为 JSON 后存储到 Redis
 	jsonData, err := json.Marshal(questions)
 	if err == nil {
-		redis.RedisClient.Set(ctx, fmt.Sprintf("questions:sid:%s", surveyID), jsonData, 20*time.Minute)
+		redis.RedisClient.Set(ctx, fmt.Sprintf("questions:sid:%d", surveyID), jsonData, 20*time.Minute)
 	}
 	return questions, err
 }
@@ -114,9 +114,9 @@ func (d *Dao) DeleteQuestion(ctx context.Context, questionID int) error {
 	return err
 }
 
-// DeleteQuestionBySurveyID 根据问卷UUID删除问题
-func (d *Dao) DeleteQuestionBySurveyID(ctx context.Context, surveyID string) error {
-	err := redis.RedisClient.Del(ctx, fmt.Sprintf("questions:sid:%s", surveyID)).Err()
+// DeleteQuestionBySurveyID 根据问卷ID删除问题
+func (d *Dao) DeleteQuestionBySurveyID(ctx context.Context, surveyID int64) error {
+	err := redis.RedisClient.Del(ctx, fmt.Sprintf("questions:sid:%d", surveyID)).Err()
 	if err != nil {
 		return err
 	}

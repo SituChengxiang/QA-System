@@ -1,6 +1,7 @@
 package main
 
 import (
+	"QA-System/internal/pkg/idgen"
 	"time"
 
 	global "QA-System/internal/global/config"
@@ -31,6 +32,8 @@ func main() {
 	}
 	// 初始化日志系统
 	log.ZapInit()
+	// 初始化雪花生成器
+	idgen.Init()
 	// 初始化数据库
 	db := mysql.Init()
 	mdb := mongodb.Init()

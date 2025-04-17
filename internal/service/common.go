@@ -14,7 +14,7 @@ import (
 
 var (
 	ctx = context.Background()
-	d   *dao.Dao
+	d   dao.Daos
 )
 
 // Init 函数用于初始化服务。
