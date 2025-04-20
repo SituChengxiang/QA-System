@@ -19,10 +19,13 @@ type Dao struct {
 
 // New 实例化数据访问对象
 func New(orm *gorm.DB, mongodb *mongo.Database) Daos {
-	return &Dao{
+	dao := &Dao{
 		orm:   orm,
 		mongo: mongodb,
 	}
+	// 初始化用户邮箱缓存
+	dao.InitializeCache()
+	return dao
 }
 
 // Daos 数据访问对象接口
@@ -62,7 +65,7 @@ type Daos interface {
 	CreateSurvey(ctx context.Context, survey model.Survey) (model.Survey, error)
 	UpdateSurveyStatus(ctx context.Context, surveyID int64, status int) error
 	UpdateSurvey(ctx context.Context, id int64, surveyType, limit uint,
-		sumLimit uint, verify bool, desc string, title string, deadline, startTime time.Time) error
+		sumLimit uint, verify bool, desc string, title string, deadline, startTime time.Time, needNotify bool) error
 	GetSurveyByUserID(ctx context.Context, userId int) ([]model.Survey, error)
 	GetSurveyByID(ctx context.Context, surveyID int64) (*model.Survey, error)
 	GetAllSurvey(ctx context.Context) ([]model.Survey, error)
@@ -73,4 +76,6 @@ type Daos interface {
 	GetUserByID(ctx context.Context, id int) (*model.User, error)
 	CreateUser(ctx context.Context, user *model.User) error
 	UpdateUserPassword(ctx context.Context, uid int, password string) error
+	UpdateUserEmail(ctx context.Context, uid int, email string) error
+	GetUserEmailByID(ctx context.Context, uid int) (string, error)
 }

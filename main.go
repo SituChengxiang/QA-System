@@ -13,6 +13,8 @@ import (
 	"QA-System/internal/pkg/utils"
 	"QA-System/internal/router"
 	"QA-System/internal/service"
+	"QA-System/pkg/extension"
+	_ "QA-System/plugins"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -41,6 +43,17 @@ func main() {
 	service.Init(db, mdb)
 	if err := utils.Init(); err != nil {
 		zap.L().Fatal(err.Error())
+	}
+
+	// 初始化插件管理器并加载插件
+	pm := extension.GetDefaultManager()
+	_, err = pm.LoadPlugins()
+	if err != nil {
+		zap.L().Error("Error loading plugins", zap.Error(err))
+	}
+	err = pm.ExecutePluginList()
+	if err != nil {
+		zap.L().Error("Error executing plugins", zap.Error(err))
 	}
 
 	// 初始化gin

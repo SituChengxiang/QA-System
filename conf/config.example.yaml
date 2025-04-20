@@ -55,3 +55,24 @@ log:
   logMaxSize: 10           # 单个日志文件最大大小 单位: MB
   logMaxAge: 7             # 日志保留天数
   logCompress: false       # 是否压缩日志文件
+
+cache:
+  ttl: 30  # 用户ID-邮箱缓存过期时间，单位：分钟
+
+plugins:
+  order:
+    # - "plugin1"
+    # - "plugin2"
+    - "emailNotifier"
+
+# 邮件通知配置
+emailNotifier:
+  smtp:                                 # 邮件服务器配置
+    host: "smtp.qq.com"
+    port: 587
+    username: "example@qq.com"          # 邮箱账号
+    password: "your_authorization_code" # 不支持双重验证
+    from: "example@qq.com"              # 发件人邮箱，一般要求和邮箱账号一样
+    tinmeout: 10                        # 超时时长，单位秒
+  workerNum:   20                       # 邮件发送协程数量
+  ScaleThreshold : 100                  # 队列长度阈值
