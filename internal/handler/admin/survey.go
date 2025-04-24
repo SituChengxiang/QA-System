@@ -147,7 +147,7 @@ func CreateSurvey(c *gin.Context) {
 	// 创建问卷
 	err = service.CreateSurvey(user.ID, data.QuestionConfig.QuestionList, data.Status, data.SurveyType, data.BaseConfig.
 		DailyLimit, data.BaseConfig.SumLimit, data.BaseConfig.Verify, ddlTime, startTime, data.QuestionConfig.Title,
-		data.QuestionConfig.Desc)
+		data.QuestionConfig.Desc, data.BaseConfig.NeedNotify)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
@@ -359,7 +359,7 @@ func UpdateSurvey(c *gin.Context) {
 	// 修改问卷
 	err = service.UpdateSurvey(data.ID, data.QuestionConfig.QuestionList, data.SurveyType, data.BaseConfig.DailyLimit,
 		data.BaseConfig.SumLimit, data.BaseConfig.Verify, data.QuestionConfig.Desc, data.QuestionConfig.Title, ddlTime,
-		startTime)
+		startTime, data.BaseConfig.NeedNotify)
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
@@ -610,11 +610,12 @@ func GetSurvey(c *gin.Context) {
 		"question_list": questionListsResponse,
 	}
 	baseConfigResponse := map[string]any{
-		"start_time": survey.StartTime,
-		"end_time":   survey.Deadline,
-		"day_limit":  survey.DailyLimit,
-		"sum_limit":  survey.SumLimit,
-		"verify":     survey.Verify,
+		"start_time":  survey.StartTime,
+		"end_time":    survey.Deadline,
+		"day_limit":   survey.DailyLimit,
+		"sum_limit":   survey.SumLimit,
+		"verify":      survey.Verify,
+		"need_notify": survey.NeedNotify,
 	}
 	response := map[string]any{
 		"id":          survey.ID,

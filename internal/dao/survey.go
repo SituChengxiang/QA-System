@@ -23,7 +23,7 @@ func (d *Dao) UpdateSurveyStatus(ctx context.Context, surveyID int64, status int
 
 // UpdateSurvey 更新问卷
 func (d *Dao) UpdateSurvey(ctx context.Context, id int64, surveyType, limit uint,
-	sumLimit uint, verify bool, desc string, title string, deadline, startTime time.Time) error {
+	sumLimit uint, verify bool, desc string, title string, deadline, startTime time.Time, needNotify bool) error {
 	err := d.orm.WithContext(ctx).Model(&model.Survey{}).Where("id = ?", id).
 		Updates(model.Survey{
 			Deadline:   deadline,
@@ -34,6 +34,7 @@ func (d *Dao) UpdateSurvey(ctx context.Context, id int64, surveyType, limit uint
 			Title:      title,
 			Type:       surveyType,
 			StartTime:  startTime,
+			NeedNotify: needNotify,
 		}).Error
 	return err
 }

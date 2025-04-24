@@ -76,6 +76,10 @@ func SubmitSurvey(sid int64, data []dao.QuestionsList, t string) error {
 		return err
 	}
 	err = d.IncreaseSurveyNum(ctx, sid)
+	if err != nil {
+		return err
+	}
+	err = FromSurveyIDToMsg(sid)
 	return err
 }
 

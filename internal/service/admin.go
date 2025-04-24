@@ -43,6 +43,15 @@ func GetAdminByID(id int) (*model.User, error) {
 	return user, nil
 }
 
+// GetUserEmailByID 根据用户ID获取用户邮箱
+func GetUserEmailByID(id int) (string, error) {
+	email, err := d.GetUserEmailByID(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	return email, nil
+}
+
 // IsAdminExist 判断管理员是否存在
 func IsAdminExist(username string) error {
 	_, err := d.GetUserByUsername(ctx, username)
@@ -82,7 +91,7 @@ func CheckPermission(id int, surveyID int64) error {
 
 // CreateSurvey 创建问卷
 func CreateSurvey(id int, question_list []dao.QuestionList, status int, surveyType, limit uint,
-	sumLimit uint, verify bool, ddl, startTime time.Time, title string, desc string) error {
+	sumLimit uint, verify bool, ddl, startTime time.Time, title string, desc string, neednot bool) error {
 	var survey model.Survey
 	survey.ID = idgen.NextId()
 	survey.UserID = id
@@ -95,6 +104,7 @@ func CreateSurvey(id int, question_list []dao.QuestionList, status int, surveyTy
 	survey.StartTime = startTime
 	survey.Title = title
 	survey.Desc = desc
+	survey.NeedNotify = neednot
 	survey, err := d.CreateSurvey(ctx, survey)
 	if err != nil {
 		return err
@@ -111,7 +121,8 @@ func UpdateSurveyStatus(id int64, status int) error {
 
 // UpdateSurvey 更新问卷
 func UpdateSurvey(id int64, question_list []dao.QuestionList, surveyType,
-	limit uint, sumLimit uint, verify bool, desc string, title string, ddl, startTime time.Time) error {
+	limit uint, sumLimit uint, verify bool, desc string, title string, ddl, startTime time.Time,
+	needNotify bool) error {
 	// 遍历原有问题，删除对应选项
 	var oldQuestions []model.Question
 	var old_imgs []string
@@ -151,7 +162,7 @@ func UpdateSurvey(id int64, question_list []dao.QuestionList, surveyType,
 		}
 	}
 	// 修改问卷信息
-	err = d.UpdateSurvey(ctx, id, surveyType, limit, sumLimit, verify, desc, title, ddl, startTime)
+	err = d.UpdateSurvey(ctx, id, surveyType, limit, sumLimit, verify, desc, title, ddl, startTime, needNotify)
 	if err != nil {
 		return err
 	}
@@ -663,6 +674,12 @@ func HandleDownloadFile(answers dao.AnswersResonse, survey *model.Survey) (strin
 func UpdateAdminPassword(id int, password string) error {
 	encryptedPassword := utils.AesEncrypt(password)
 	err := d.UpdateUserPassword(ctx, id, encryptedPassword)
+	return err
+}
+
+// UpdateAdminEmail 更新管理员邮箱
+func UpdateAdminEmail(id int, email string) error {
+	err := d.UpdateUserEmail(ctx, id, email)
 	return err
 }
 

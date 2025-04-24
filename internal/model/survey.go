@@ -17,6 +17,7 @@ type Survey struct {
 	Verify     bool      `json:"verify"`               // 问卷是否需要统一验证
 	Type       uint      `json:"type"`                 // 问卷类型 0:调研 1:投票
 	Num        int       `json:"num"`                  // 问卷填写数量
+	NeedNotify bool      `json:"need_notify"`          // 是否需要通知
 }
 
 // SurveyResp 问卷响应模型
