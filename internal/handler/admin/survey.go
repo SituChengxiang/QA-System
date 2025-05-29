@@ -3,9 +3,7 @@ package admin
 import (
 	"errors"
 	"math"
-	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"QA-System/internal/dao"
@@ -677,19 +675,6 @@ type getSurveyStatisticsData struct {
 	PageSize int   `form:"page_size" binding:"required"`
 }
 
-type getOptionCount struct {
-	SerialNum int    `json:"serial_num"` // 选项序号
-	Content   string `json:"content"`    // 选项内容
-	Count     int    `json:"count"`      // 选项数量
-}
-
-type getSurveyStatisticsResponse struct {
-	SerialNum    int              `json:"serial_num"`    // 问题序号
-	Question     string           `json:"question"`      // 问题内容
-	QuestionType int              `json:"question_type"` // 问题类型  1:单选 2:多选
-	Options      []getOptionCount `json:"options"`       // 选项内容
-}
-
 // GetSurveyStatistics 获取统计问卷选择题数据
 func GetSurveyStatistics(c *gin.Context) {
 	var data getSurveyStatisticsData
@@ -728,98 +713,7 @@ func GetSurveyStatistics(c *gin.Context) {
 		return
 	}
 
-	questionMap := make(map[int]model.Question)
-	optionsMap := make(map[int][]model.Option)
-	optionAnswerMap := make(map[int]map[string]model.Option)
-	optionSerialNumMap := make(map[int]map[int]model.Option)
-	for _, question := range questions {
-		questionMap[question.ID] = question
-		optionAnswerMap[question.ID] = make(map[string]model.Option)
-		optionSerialNumMap[question.ID] = make(map[int]model.Option)
-		options, err := service.GetOptionsByQuestionID(question.ID)
-		if err != nil {
-			code.AbortWithException(c, code.ServerError, err)
-			return
-		}
-		optionsMap[question.ID] = options
-		for _, option := range options {
-			optionAnswerMap[question.ID][option.Content] = option
-			optionSerialNumMap[question.ID][option.SerialNum] = option
-		}
-	}
-
-	optionCounts := make(map[int]map[int]int)
-	for _, sheet := range answersheets {
-		for _, answer := range sheet.Answers {
-			options := optionsMap[answer.QuestionID]
-			question := questionMap[answer.QuestionID]
-			// 初始化选项统计（确保每个选项的计数存在且为 0）
-			if _, initialized := optionCounts[question.ID]; !initialized {
-				counts := ensureMap(optionCounts, question.ID)
-				for _, option := range options {
-					counts[option.SerialNum] = 0
-				}
-			}
-			if question.QuestionType == 1 || question.QuestionType == 2 {
-				answerOptions := strings.Split(answer.Content, "┋")
-				questionOptions := optionAnswerMap[answer.QuestionID]
-				for _, answerOption := range answerOptions {
-					// 查找选项
-					if questionOptions != nil {
-						option, exists := questionOptions[answerOption]
-						if exists {
-							// 如果找到选项，处理逻辑
-							ensureMap(optionCounts, answer.QuestionID)[option.SerialNum]++
-							continue
-						}
-					}
-					// 如果选项不存在，处理为 "其他" 选项
-					ensureMap(optionCounts, answer.QuestionID)[0]++
-				}
-			}
-		}
-	}
-	response := make([]getSurveyStatisticsResponse, 0, len(optionCounts))
-	for qid, options := range optionCounts {
-		q := questionMap[qid]
-		var qOptions []getOptionCount
-		if q.OtherOption {
-			qOptions = make([]getOptionCount, 0, len(options)+1)
-			// 添加其他选项
-			qOptions = append(qOptions, getOptionCount{
-				SerialNum: 0,
-				Content:   "其他",
-				Count:     options[0],
-			})
-		} else {
-			qOptions = make([]getOptionCount, 0, len(options))
-		}
-
-		// 按序号排序
-		sortedSerialNums := make([]int, 0, len(options))
-		for oSerialNum := range options {
-			sortedSerialNums = append(sortedSerialNums, oSerialNum)
-		}
-		sort.Ints(sortedSerialNums)
-		for _, oSerialNum := range sortedSerialNums {
-			if oSerialNum == 0 {
-				continue
-			}
-			count := options[oSerialNum]
-			op := optionSerialNumMap[qid][oSerialNum]
-			qOptions = append(qOptions, getOptionCount{
-				SerialNum: op.SerialNum,
-				Content:   op.Content,
-				Count:     count,
-			})
-		}
-		response = append(response, getSurveyStatisticsResponse{
-			SerialNum:    q.SerialNum,
-			Question:     q.Subject,
-			QuestionType: q.QuestionType,
-			Options:      qOptions,
-		})
-	}
+	response := service.GenerateQuestionStats(questions, answersheets)
 	start := (data.PageNum - 1) * data.PageSize
 	end := start + data.PageSize
 	// 确保 start 和 end 在有效范围内
@@ -832,11 +726,6 @@ func GetSurveyStatistics(c *gin.Context) {
 	if start > end {
 		start = end
 	}
-
-	// 按序号排序
-	sort.Slice(response, func(i, j int) bool {
-		return response[i].SerialNum < response[j].SerialNum
-	})
 
 	// 访问切片
 	resp := response[start:end]
@@ -917,13 +806,6 @@ func CreateQuestionPre(c *gin.Context) {
 	utils.JsonSuccessResponse(c, nil)
 }
 
-func ensureMap(m map[int]map[int]int, key int) map[int]int {
-	if m[key] == nil {
-		m[key] = make(map[int]int)
-	}
-	return m[key]
-}
-
 type deleteAnswerSheetData struct {
 	AnswerID string `bson:"_id" form:"answer_id" binding:"required"`
 }
@@ -969,4 +851,53 @@ func DeleteAnswerSheet(c *gin.Context) {
 		return
 	}
 	utils.JsonSuccessResponse(c, nil)
+}
+
+type downloadChooseData struct {
+	ID int64 `form:"id" binding:"required"`
+}
+
+// DownloadChooseFile 下载选择题数据
+func DownloadChooseFile(c *gin.Context) {
+	var data downloadChooseData
+	err := c.ShouldBindQuery(&data)
+	if err != nil {
+		code.AbortWithException(c, code.ParamError, err)
+		return
+	}
+	user, err := service.GetUserSession(c)
+	if err != nil {
+		code.AbortWithException(c, code.NotLogin, err)
+		return
+	}
+	// 获取问卷
+	survey, err := service.GetSurveyByID(data.ID)
+	if err != nil {
+		code.AbortWithException(c, code.ServerError, err)
+		return
+	}
+	// 判断权限
+	if (user.AdminType != 2) && (user.AdminType != 1 || survey.UserID != user.ID) &&
+		!service.UserInManage(user.ID, survey.ID) {
+		code.AbortWithException(c, code.NoPermission, errors.New(user.Username+"无权限"))
+		return
+	}
+	// 获取数据
+	answers, err := service.GetSurveyAnswersBySurveyID(data.ID)
+	if err != nil {
+		code.AbortWithException(c, code.ServerError, err)
+		return
+	}
+	questions, err := service.GetQuestionsBySurveyID(data.ID)
+	if err != nil {
+		code.AbortWithException(c, code.ServerError, err)
+		return
+	}
+	stats := service.GenerateQuestionStats(questions, answers)
+	url, err := service.HandleChooseStatistics(survey, stats)
+	if err != nil {
+		code.AbortWithException(c, code.ServerError, err)
+		return
+	}
+	utils.JsonSuccessResponse(c, url)
 }

@@ -46,6 +46,7 @@ func Init(r *gin.Engine) {
 			admin.GET("/list/questions", a.GetAllSurvey)
 			admin.GET("/single/question", a.GetSurvey)
 			admin.GET("/download", a.DownloadFile)
+			admin.GET("/download/chooseStatics", a.DownloadChooseFile)
 		}
 	}
 }
