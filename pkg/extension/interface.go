@@ -13,3 +13,9 @@ type Plugin interface {
 	GetMetadata() PluginMetadata         // GetMetadata 获取插件元数据
 	Execute(params map[string]any) error // Execute 执行插件功能，接收参数
 }
+
+// PluginHealthChecker 定义插件健康检查接口
+type PluginHealthChecker interface {
+	IsHealthy() bool   // IsHealthy 检查插件是否健康可用
+	GetStatus() string // GetStatus 获取插件状态描述
+}

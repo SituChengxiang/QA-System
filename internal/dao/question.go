@@ -12,12 +12,13 @@ import (
 
 // BaseConfig 基本配置模型
 type BaseConfig struct {
-	StartTime  string `json:"start_time" binding:"datetime=2006-01-02T15:04:05+08:00"`
-	EndTime    string `json:"end_time" binding:"datetime=2006-01-02T15:04:05+08:00"`
-	DailyLimit uint   `json:"day_limit"`   // 问卷每日填写限制
-	SumLimit   uint   `json:"sum_limit"`   // 问卷总填写次数限制
-	Verify     bool   `json:"verify"`      // 问卷是否需要统一验证
-	NeedNotify bool   `json:"need_notify"` // 问卷在收到回复时是否需要提醒
+	StartTime     string `json:"start_time" binding:"datetime=2006-01-02T15:04:05+08:00"`
+	EndTime       string `json:"end_time" binding:"datetime=2006-01-02T15:04:05+08:00"`
+	DailyLimit    uint   `json:"day_limit"`      // 问卷每日填写限制
+	SumLimit      uint   `json:"sum_limit"`      // 问卷总填写次数限制
+	Verify        bool   `json:"verify"`         // 问卷是否需要统一验证
+	UndergradOnly bool   `json:"undergrad_only"` // 是否只限制本科生作答
+	NeedNotify    bool   `json:"need_notify"`    // 问卷在收到回复时是否需要提醒
 }
 
 // QuestionConfig 问题配置模型

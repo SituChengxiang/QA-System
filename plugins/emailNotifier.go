@@ -24,6 +24,7 @@ type emailNotifier struct {
 	pool         gopool.Pool    // 协程池
 	dialer       *gomail.Dialer // 邮件发送器
 	logger       *slog.Logger   // 日志记录器
+	enabled      bool           // 插件是否启用
 }
 
 var betterNotifier *emailNotifier
@@ -33,12 +34,14 @@ func init() {
 	betterNotifier = &emailNotifier{
 		workerNum: 20, // 默认20个协程
 		logger:    extension.GetPluginLogger(),
+		enabled:   false, // 默认禁用，需要配置验证后启用
 	}
 
 	if err := betterNotifier.initialize(); err != nil {
 		betterNotifier.logger.Warn("Failed to initialize email_notifier", "error", err)
-		return
+		// 即使初始化失败也注册插件，但标记为禁用状态
 	}
+
 	if err := extension.RegisterPlugin(betterNotifier); err != nil {
 		betterNotifier.logger.Warn("Failed to register email_notifier", "error", err)
 		return
@@ -59,8 +62,15 @@ func (p *emailNotifier) initialize() error {
 		}
 	}
 
+	// 检查关键配置是否存在
 	if p.smtpHost == "" || p.smtpUsername == "" || p.smtpPassword == "" || p.from == "" {
-		return errors.New("invalid SMTP configuration, the plugin won't work")
+		p.enabled = false
+		return errors.New("incomplete SMTP configuration, plugin will be disabled")
+	}
+
+	// 如果端口未设置，使用默认值
+	if p.smtpPort == 0 {
+		p.smtpPort = 587
 	}
 
 	poolConfig := gopool.NewConfig()
@@ -84,6 +94,12 @@ func (p *emailNotifier) initialize() error {
 
 	// 初始化 Dialer（复用连接）
 	p.dialer = gomail.NewDialer(p.smtpHost, p.smtpPort, p.smtpUsername, p.smtpPassword)
+	p.enabled = true
+
+	p.logger.Info("Email notifier initialized successfully",
+		"host", p.smtpHost,
+		"port", p.smtpPort,
+		"from", p.from)
 
 	return nil
 }
@@ -101,6 +117,12 @@ func (p *emailNotifier) GetMetadata() extension.PluginMetadata {
 
 // Execute 启动插件，这里只是记录一下启动信息
 func (p *emailNotifier) Execute(params map[string]any) error {
+	// 检查插件是否已启用
+	if !p.enabled {
+		p.logger.Warn("Email notifier is disabled due to missing configuration")
+		return errors.New("email notifier is disabled due to incomplete SMTP configuration")
+	}
+
 	// 如果没有参数，仅记录启动信息
 	if params == nil {
 		p.logger.Info("emailNotifier started", "workers", int(p.workerNum))
@@ -183,4 +205,20 @@ func (p *emailNotifier) SendEmail(data map[string]any) error {
 		"recipient", recipient,
 		"title", title)
 	return nil
+}
+
+// IsHealthy 实现插件健康检查接口
+func (p *emailNotifier) IsHealthy() bool {
+	return p.enabled && p.dialer != nil
+}
+
+// GetStatus 获取插件状态描述
+func (p *emailNotifier) GetStatus() string {
+	if !p.enabled {
+		return "disabled: incomplete SMTP configuration"
+	}
+	if p.dialer == nil {
+		return "error: SMTP dialer not initialized"
+	}
+	return "active: ready to send emails"
 }

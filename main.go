@@ -47,10 +47,28 @@ func main() {
 
 	// 初始化插件管理器并加载插件
 	pm := extension.GetDefaultManager()
-	_, err = pm.LoadPlugins()
+	plugins, err := pm.LoadPlugins()
 	if err != nil {
 		zap.L().Error("Error loading plugins", zap.Error(err))
 	}
+
+	// 打印插件状态信息
+	for _, plugin := range plugins {
+		metadata := plugin.GetMetadata()
+		status, healthy := extension.GetPluginStatus(metadata.Name)
+		if healthy {
+			zap.L().Info("Plugin loaded successfully",
+				zap.String("name", metadata.Name),
+				zap.String("version", metadata.Version),
+				zap.String("status", status))
+		} else {
+			zap.L().Warn("Plugin loaded but unhealthy",
+				zap.String("name", metadata.Name),
+				zap.String("version", metadata.Version),
+				zap.String("status", status))
+		}
+	}
+
 	err = pm.ExecutePluginList()
 	if err != nil {
 		zap.L().Error("Error executing plugins", zap.Error(err))
