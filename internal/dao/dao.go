@@ -65,7 +65,8 @@ type Daos interface {
 	CreateSurvey(ctx context.Context, survey model.Survey) (model.Survey, error)
 	UpdateSurveyStatus(ctx context.Context, surveyID int64, status int) error
 	UpdateSurvey(ctx context.Context, id int64, surveyType, limit uint,
-		sumLimit uint, verify bool, desc string, title string, deadline, startTime time.Time, needNotify bool) error
+		sumLimit uint, verify bool, undergradOnly bool, desc string, title string, deadline, startTime time.Time,
+		needNotify bool) error
 	GetSurveyByUserID(ctx context.Context, userId int) ([]model.Survey, error)
 	GetSurveyByID(ctx context.Context, surveyID int64) (*model.Survey, error)
 	GetAllSurvey(ctx context.Context) ([]model.Survey, error)

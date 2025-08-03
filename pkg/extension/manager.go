@@ -1,4 +1,3 @@
-// extension/manager.go
 package extension
 
 import (
@@ -55,11 +54,6 @@ func GetDefaultManager() *PluginManager {
 	return defaultManager
 }
 
-// SetDefaultManager 允许在应用启动时设置自定义配置的默认管理器
-func SetDefaultManager(manager *PluginManager) {
-	defaultManager = manager
-}
-
 // RegisterPlugin 向插件管理器注册插件
 func (pm *PluginManager) RegisterPlugin(p Plugin) error {
 	pm.mu.Lock()
@@ -91,10 +85,22 @@ func (pm *PluginManager) RegisterPlugin(p Plugin) error {
 func (pm *PluginManager) ExecutePlugin(name string, params map[string]any) error {
 	plugin, ok := pm.GetPlugin(name)
 	if !ok {
+		pm.logger.Warn("Plugin not found, skipping execution", "name", name)
 		return fmt.Errorf("plugin %s not found", name)
 	}
 
 	metadata := plugin.GetMetadata()
+
+	// 如果插件实现了健康检查接口，先检查健康状态
+	if healthChecker, ok := plugin.(PluginHealthChecker); ok {
+		if !healthChecker.IsHealthy() {
+			pm.logger.Warn("Plugin is unhealthy, skipping execution",
+				"name", metadata.Name,
+				"status", healthChecker.GetStatus())
+			return fmt.Errorf("plugin %s is unhealthy: %s", name, healthChecker.GetStatus())
+		}
+	}
+
 	pm.logger.Info("Executing specific plugin",
 		"name", metadata.Name,
 		"version", metadata.Version)
@@ -107,6 +113,15 @@ func (pm *PluginManager) ExecutePlugin(name string, params map[string]any) error
 	}
 
 	return nil
+}
+
+// ExecutePluginSafely 安全执行插件，不会因为插件失败而中断程序
+func (pm *PluginManager) ExecutePluginSafely(name string, params map[string]any) {
+	if err := pm.ExecutePlugin(name, params); err != nil {
+		pm.logger.Warn("Plugin execution failed, but continuing",
+			"name", name,
+			"error", err)
+	}
 }
 
 // ExecutePluginList 链式执行插件列表（这个功能还在调）
@@ -172,22 +187,21 @@ func RegisterPlugin(p Plugin) error {
 	return GetDefaultManager().RegisterPlugin(p)
 }
 
-// ExecutePlugin （包级）执行特定插件
-func ExecutePlugin(name string, params map[string]any) error {
-	return GetDefaultManager().ExecutePlugin(name, params)
+// ExecutePluginSafely （包级）安全执行特定插件
+func ExecutePluginSafely(name string, params map[string]any) {
+	GetDefaultManager().ExecutePluginSafely(name, params)
 }
 
-// ExecutePluginList （包级）执行插件列表
-func ExecutePluginList() error {
-	return GetDefaultManager().ExecutePluginList()
-}
+// GetPluginStatus （包级）获取插件状态信息
+func GetPluginStatus(name string) (string, bool) {
+	plugin, ok := GetDefaultManager().GetPlugin(name)
+	if !ok {
+		return "not found", false
+	}
 
-// GetPlugin （包级）从默认插件管理器获取插件实例
-func GetPlugin(name string) (Plugin, bool) {
-	return GetDefaultManager().GetPlugin(name)
-}
+	if healthChecker, ok := plugin.(PluginHealthChecker); ok {
+		return healthChecker.GetStatus(), healthChecker.IsHealthy()
+	}
 
-// LoadPlugins （包级）从默认插件管理器加载插件列表
-func LoadPlugins() ([]Plugin, error) {
-	return GetDefaultManager().LoadPlugins()
+	return "no health check available", true
 }

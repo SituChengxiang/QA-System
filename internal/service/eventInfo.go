@@ -25,10 +25,8 @@ func FromSurveyIDToMsg(surveyID int64) error {
 			"timestamp":     time.Now().UnixNano(),
 		}
 
-		// 使用 emailNotifier 发送邮件
-		err = extension.ExecutePlugin("emailNotifier", data)
-
-		return err
+		// 使用 emailNotifier 发送邮件（安全执行，不会因为插件问题影响主流程）
+		extension.ExecutePluginSafely("emailNotifier", data)
 	}
 
 	return nil

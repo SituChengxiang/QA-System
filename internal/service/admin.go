@@ -95,7 +95,8 @@ func CheckPermission(id int, surveyID int64) error {
 
 // CreateSurvey 创建问卷
 func CreateSurvey(id int, question_list []dao.QuestionList, status int, surveyType, limit uint,
-	sumLimit uint, verify bool, ddl, startTime time.Time, title string, desc string, neednot bool) error {
+	sumLimit uint, verify, undergradOnly bool, ddl, startTime time.Time, title string, desc string,
+	neednot bool) error {
 	var survey model.Survey
 	survey.ID = idgen.NextId()
 	survey.UserID = id
@@ -105,6 +106,7 @@ func CreateSurvey(id int, question_list []dao.QuestionList, status int, surveyTy
 	survey.DailyLimit = limit
 	survey.SumLimit = sumLimit
 	survey.Verify = verify
+	survey.UndergradOnly = undergradOnly
 	survey.StartTime = startTime
 	survey.Title = title
 	survey.Desc = desc
@@ -125,7 +127,7 @@ func UpdateSurveyStatus(id int64, status int) error {
 
 // UpdateSurvey 更新问卷
 func UpdateSurvey(id int64, question_list []dao.QuestionList, surveyType,
-	limit uint, sumLimit uint, verify bool, desc string, title string, ddl, startTime time.Time,
+	limit uint, sumLimit uint, verify, undergradOnly bool, desc string, title string, ddl, startTime time.Time,
 	needNotify bool) error {
 	// 遍历原有问题，删除对应选项
 	var oldQuestions []model.Question
@@ -166,7 +168,8 @@ func UpdateSurvey(id int64, question_list []dao.QuestionList, surveyType,
 		}
 	}
 	// 修改问卷信息
-	err = d.UpdateSurvey(ctx, id, surveyType, limit, sumLimit, verify, desc, title, ddl, startTime, needNotify)
+	err = d.UpdateSurvey(ctx, id, surveyType, limit, sumLimit, verify, undergradOnly, desc, title, ddl, startTime,
+		needNotify)
 	if err != nil {
 		return err
 	}

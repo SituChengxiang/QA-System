@@ -112,7 +112,7 @@ func SubmitSurvey(c *gin.Context) {
 
 	if survey.Verify {
 		var err error
-		if userInfo.UserTypeDesc != "本科生" {
+		if userInfo.UserTypeDesc != "本科生" && survey.UndergradOnly {
 			code.AbortWithException(c, code.NotUnderGraduateError, errors.New("当前问卷仅允许本科生回答"))
 			return
 		}
@@ -254,11 +254,12 @@ func GetSurvey(c *gin.Context) {
 		"question_list": questionListsResponse,
 	}
 	baseConfigResponse := map[string]any{
-		"start_time": survey.StartTime,
-		"end_time":   survey.Deadline,
-		"day_limit":  survey.DailyLimit,
-		"sum_limit":  survey.SumLimit,
-		"verify":     survey.Verify,
+		"start_time":     survey.StartTime,
+		"end_time":       survey.Deadline,
+		"day_limit":      survey.DailyLimit,
+		"sum_limit":      survey.SumLimit,
+		"verify":         survey.Verify,
+		"undergrad_only": survey.UndergradOnly,
 	}
 	response := map[string]any{
 		"id":          survey.ID,
