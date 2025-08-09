@@ -38,7 +38,7 @@ func Init() *mongo.Database {
 			user, pass, host, db)
 	} else {
 		// 普通 MongoDB 连接字符串
-		dsn = fmt.Sprintf("mongodb://%v:%v@%v:%v/%v", user, pass, host, port, db)
+		dsn = fmt.Sprintf("mongodb://%v:%v@%v:%v/%v?authSource=admin", user, pass, host, port, db)
 	}
 
 	// 使用 dsn 连接 MongoDB
