@@ -7,13 +7,14 @@ import (
 	"QA-System/internal/dao"
 	global "QA-System/internal/global/config"
 	r "QA-System/internal/pkg/redis"
+
 	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
 )
 
 var (
 	ctx = context.Background()
-	d   *dao.Dao
+	d   dao.Daos
 )
 
 // Init 函数用于初始化服务。

@@ -31,6 +31,6 @@ clean: ## 清理编译生成的文件
 fmt: ## 格式化代码并静态检查
 	@echo "Formatting Go files..."
 	gofmt -w .
-	gci write . -s standard -s default
+	goimports -w .
 	@echo "Running Lints..."
 	golangci-lint run

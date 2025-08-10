@@ -3,15 +3,22 @@ package service
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/zjutjh/WeJH-SDK/excel"
+
+	"github.com/yitter/idgenerator-go/idgen"
+
 	"QA-System/internal/dao"
 	"QA-System/internal/model"
 	"QA-System/internal/pkg/utils"
+
 	"github.com/xuri/excelize/v2"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -40,6 +47,15 @@ func GetAdminByID(id int) (*model.User, error) {
 	return user, nil
 }
 
+// GetUserEmailByID 根据用户ID获取用户邮箱
+func GetUserEmailByID(id int) (string, error) {
+	email, err := d.GetUserEmailByID(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	return email, nil
+}
+
 // IsAdminExist 判断管理员是否存在
 func IsAdminExist(username string) error {
 	_, err := d.GetUserByUsername(ctx, username)
@@ -60,27 +76,29 @@ func GetUserByName(username string) (*model.User, error) {
 }
 
 // CreatePermission 创建权限
-func CreatePermission(id int, surveyID int) error {
+func CreatePermission(id int, surveyID int64) error {
 	err := d.CreateManage(ctx, id, surveyID)
 	return err
 }
 
 // DeletePermission 删除权限
-func DeletePermission(id int, surveyID int) error {
+func DeletePermission(id int, surveyID int64) error {
 	err := d.DeleteManage(ctx, id, surveyID)
 	return err
 }
 
 // CheckPermission 检查权限
-func CheckPermission(id int, surveyID int) error {
+func CheckPermission(id int, surveyID int64) error {
 	err := d.CheckManage(ctx, id, surveyID)
 	return err
 }
 
 // CreateSurvey 创建问卷
 func CreateSurvey(id int, question_list []dao.QuestionList, status int, surveyType, limit uint,
-	sumLimit uint, verify bool, ddl, startTime time.Time, title string, desc string) error {
+	sumLimit uint, verify, undergradOnly bool, ddl, startTime time.Time, title string, desc string,
+	neednot bool) error {
 	var survey model.Survey
+	survey.ID = idgen.NextId()
 	survey.UserID = id
 	survey.Status = status
 	survey.Deadline = ddl
@@ -88,9 +106,11 @@ func CreateSurvey(id int, question_list []dao.QuestionList, status int, surveyTy
 	survey.DailyLimit = limit
 	survey.SumLimit = sumLimit
 	survey.Verify = verify
+	survey.UndergradOnly = undergradOnly
 	survey.StartTime = startTime
 	survey.Title = title
 	survey.Desc = desc
+	survey.NeedNotify = neednot
 	survey, err := d.CreateSurvey(ctx, survey)
 	if err != nil {
 		return err
@@ -100,14 +120,15 @@ func CreateSurvey(id int, question_list []dao.QuestionList, status int, surveyTy
 }
 
 // UpdateSurveyStatus 更新问卷状态
-func UpdateSurveyStatus(id int, status int) error {
+func UpdateSurveyStatus(id int64, status int) error {
 	err := d.UpdateSurveyStatus(ctx, id, status)
 	return err
 }
 
 // UpdateSurvey 更新问卷
-func UpdateSurvey(id int, question_list []dao.QuestionList, surveyType,
-	limit uint, sumLimit uint, verify bool, desc string, title string, ddl, startTime time.Time) error {
+func UpdateSurvey(id int64, question_list []dao.QuestionList, surveyType,
+	limit uint, sumLimit uint, verify, undergradOnly bool, desc string, title string, ddl, startTime time.Time,
+	needNotify bool) error {
 	// 遍历原有问题，删除对应选项
 	var oldQuestions []model.Question
 	var old_imgs []string
@@ -147,7 +168,8 @@ func UpdateSurvey(id int, question_list []dao.QuestionList, surveyType,
 		}
 	}
 	// 修改问卷信息
-	err = d.UpdateSurvey(ctx, id, surveyType, limit, sumLimit, verify, desc, title, ddl, startTime)
+	err = d.UpdateSurvey(ctx, id, surveyType, limit, sumLimit, verify, undergradOnly, desc, title, ddl, startTime,
+		needNotify)
 	if err != nil {
 		return err
 	}
@@ -171,13 +193,13 @@ func UpdateSurvey(id int, question_list []dao.QuestionList, surveyType,
 }
 
 // UserInManage 用户是否在管理中
-func UserInManage(uid int, sid int) bool {
+func UserInManage(uid int, sid int64) bool {
 	_, err := d.GetManageByUIDAndSID(ctx, uid, sid)
 	return err == nil
 }
 
 // DeleteSurvey 删除问卷
-func DeleteSurvey(id int) error {
+func DeleteSurvey(id int64) error {
 	var questions []model.Question
 	questions, err := d.GetQuestionsBySurveyID(ctx, id)
 	if err != nil {
@@ -200,15 +222,24 @@ func DeleteSurvey(id int) error {
 	}
 	urlHost := GetConfigUrl()
 	for _, img := range imgs {
-		err = os.Remove("./public/static/" + strings.TrimPrefix(img, urlHost+"/public/static/"))
-		if err != nil {
-			return err
+		path := "./public/static/" + strings.TrimPrefix(img, urlHost+"/public/static/")
+		info, statErr := os.Stat(path)
+		if statErr == nil && !info.IsDir() {
+			err = os.Remove(path)
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
 		}
 	}
+
 	for _, file := range files {
-		err = os.Remove("./public/file/" + strings.TrimPrefix(file, urlHost+"/public/file/"))
-		if err != nil {
-			return err
+		path := "./public/file/" + strings.TrimPrefix(file, urlHost+"/public/file/")
+		info, statErr := os.Stat(path)
+		if statErr == nil && !info.IsDir() {
+			err = os.Remove(path)
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
 		}
 	}
 	// 删除答卷
@@ -244,7 +275,7 @@ func DeleteSurvey(id int) error {
 }
 
 // GetSurveyAnswers 获取问卷答案
-func GetSurveyAnswers(id int, num int, size int, text string, unique bool) (dao.AnswersResonse, *int64, error) {
+func GetSurveyAnswers(id int64, num int, size int, text string, unique bool) (dao.AnswersResonse, *int64, error) {
 	var answerSheets []dao.AnswerSheet
 	data := make([]dao.QuestionAnswers, 0)
 	times := make([]string, 0)
@@ -333,7 +364,7 @@ func GetAllSurvey() ([]model.Survey, error) {
 // SortSurvey 排序问卷
 func SortSurvey(originalSurveys []model.Survey) []model.Survey {
 	sort.Slice(originalSurveys, func(i, j int) bool {
-		return originalSurveys[i].ID > originalSurveys[j].ID
+		return originalSurveys[i].CreatedAt.After(originalSurveys[j].CreatedAt)
 	})
 
 	status1Surveys := make([]model.Survey, 0)
@@ -381,7 +412,7 @@ func GetManagedSurveyByUserID(userId int) ([]model.Manage, error) {
 }
 
 // GetAllSurveyAnswers 获取所有问卷答案
-func GetAllSurveyAnswers(id int) (dao.AnswersResonse, error) {
+func GetAllSurveyAnswers(id int64) (dao.AnswersResonse, error) {
 	data := make([]dao.QuestionAnswers, 0)
 	answerSheets := make([]dao.AnswerSheet, 0)
 	questions := make([]model.Question, 0)
@@ -418,7 +449,7 @@ func GetAllSurveyAnswers(id int) (dao.AnswersResonse, error) {
 }
 
 // GetSurveyAnswersBySurveyID 根据问卷编号获取问卷答案
-func GetSurveyAnswersBySurveyID(sid int) ([]dao.AnswerSheet, error) {
+func GetSurveyAnswersBySurveyID(sid int64) ([]dao.AnswerSheet, error) {
 	answerSheets, _, err := d.GetAnswerSheetBySurveyID(ctx, sid, 0, 0, "", true)
 	return answerSheets, err
 }
@@ -451,14 +482,18 @@ func getOldImgs(questions []model.Question) ([]string, error) {
 func getDelImgs(questions []model.Question, answerSheets []dao.AnswerSheet) ([]string, error) {
 	imgs := make([]string, 0)
 	for _, question := range questions {
-		imgs = append(imgs, question.Img)
+		if question.Img != "" {
+			imgs = append(imgs, question.Img)
+		}
 		var options []model.Option
 		options, err := d.GetOptionsByQuestionID(ctx, question.ID)
 		if err != nil {
 			return nil, err
 		}
 		for _, option := range options {
-			imgs = append(imgs, option.Img)
+			if option.Img != "" {
+				imgs = append(imgs, question.Img)
+			}
 		}
 	}
 	for _, answerSheet := range answerSheets {
@@ -467,7 +502,7 @@ func getDelImgs(questions []model.Question, answerSheets []dao.AnswerSheet) ([]s
 			if err != nil {
 				return nil, err
 			}
-			if question.QuestionType == 5 {
+			if question.QuestionType == 5 && answer.Content != "" {
 				imgs = append(imgs, answer.Content)
 			}
 		}
@@ -491,7 +526,7 @@ func getDelFiles(answerSheets []dao.AnswerSheet) ([]string, error) {
 	return files, nil
 }
 
-func createQuestionsAndOptions(question_list []dao.QuestionList, sid int) ([]string, error) {
+func createQuestionsAndOptions(question_list []dao.QuestionList, sid int64) ([]string, error) {
 	imgs := make([]string, 0)
 	for _, question_list := range question_list {
 		var q model.Question
@@ -530,7 +565,7 @@ func createQuestionsAndOptions(question_list []dao.QuestionList, sid int) ([]str
 }
 
 // DeleteAnswerSheetBySurveyID 根据问卷编号删除问卷答案
-func DeleteAnswerSheetBySurveyID(surveyID int) error {
+func DeleteAnswerSheetBySurveyID(surveyID int64) error {
 	err := d.DeleteAnswerSheetBySurveyID(ctx, surveyID)
 	return err
 }
@@ -649,6 +684,12 @@ func UpdateAdminPassword(id int, password string) error {
 	return err
 }
 
+// UpdateAdminEmail 更新管理员邮箱
+func UpdateAdminEmail(id int, email string) error {
+	err := d.UpdateUserEmail(ctx, id, email)
+	return err
+}
+
 // CreateQuestionPre 创建问题预先信息
 func CreateQuestionPre(name string, value []string) error {
 	// 将String[]类型转化为String,以逗号分隔
@@ -670,7 +711,7 @@ func GetQuestionPre(name string) ([]string, error) {
 }
 
 // DeleteOauthRecord 删除统一记录
-func DeleteOauthRecord(sid int) error {
+func DeleteOauthRecord(sid int64) error {
 	return d.DeleteRecordSheets(ctx, sid)
 }
 
@@ -684,4 +725,188 @@ func DeleteAnswerSheetByAnswerID(answerID primitive.ObjectID) error {
 func GetAnswerSheetByAnswerID(answerID primitive.ObjectID) error {
 	err := d.GetAnswerSheetByAnswerID(ctx, answerID)
 	return err
+}
+
+// GetOptionCount 选项数据
+type GetOptionCount struct {
+	SerialNum int    `json:"serial_num"` // 选项序号
+	Content   string `json:"content"`    // 选项内容
+	Count     int    `json:"count"`      // 选项数量
+	Percent   string `json:"percent"`    // 占比百分比，保留两位小数
+}
+
+// GetChooseStatisticsResponse 问题模型
+type GetChooseStatisticsResponse struct {
+	SerialNum    int              `json:"serial_num"`    // 问题序号
+	Question     string           `json:"question"`      // 问题内容
+	QuestionType int              `json:"question_type"` // 问题类型  1:单选 2:多选
+	Options      []GetOptionCount `json:"options"`       // 选项内容
+}
+
+// GenerateQuestionStats 生成问卷题目统计结果
+func GenerateQuestionStats(questions []model.Question, answerSheets []dao.AnswerSheet) []GetChooseStatisticsResponse {
+	questionMap := make(map[int]model.Question)
+	optionsMap := make(map[int][]model.Option)
+	optionAnswerMap := make(map[int]map[string]model.Option)
+	optionSerialNumMap := make(map[int]map[int]model.Option)
+	for _, question := range questions {
+		questionMap[question.ID] = question
+		optionAnswerMap[question.ID] = make(map[string]model.Option)
+		optionSerialNumMap[question.ID] = make(map[int]model.Option)
+		options, err := GetOptionsByQuestionID(question.ID)
+		if err != nil {
+			log.Println("Error fetching options for questionID:", question.ID)
+			continue
+		}
+		optionsMap[question.ID] = options
+		for _, option := range options {
+			optionAnswerMap[question.ID][option.Content] = option
+			optionSerialNumMap[question.ID][option.SerialNum] = option
+		}
+	}
+
+	optionCounts := make(map[int]map[int]int)
+	for _, sheet := range answerSheets {
+		for _, answer := range sheet.Answers {
+			options := optionsMap[answer.QuestionID]
+			question := questionMap[answer.QuestionID]
+
+			// 初始化外层 map：如果某题还没记录，先创建一个 map[int]int 作为它的值
+			if _, ok := optionCounts[question.ID]; !ok {
+				optionCounts[question.ID] = make(map[int]int)
+
+				// 初始化所有选项的计数为 0（避免后续统计遗漏）
+				for _, option := range options {
+					optionCounts[question.ID][option.SerialNum] = 0
+				}
+			}
+
+			// 支持单选题、多选题：用 "┋" 分割用户选的答案
+			if question.QuestionType == 1 || question.QuestionType == 2 {
+				answerOptions := strings.Split(answer.Content, "┋")
+				questionOptions := optionAnswerMap[answer.QuestionID]
+
+				for _, answerOption := range answerOptions {
+					if questionOptions != nil {
+						option, exists := questionOptions[answerOption]
+						if exists {
+							// 该选项存在，序号对应的次数 +1
+							optionCounts[answer.QuestionID][option.SerialNum]++
+							continue
+						}
+					}
+					// “其他”选项，统一用 SerialNum = 0 表示
+					optionCounts[answer.QuestionID][0]++
+				}
+			}
+		}
+	}
+	response := make([]GetChooseStatisticsResponse, 0, len(optionCounts))
+	for qid, optionCountMap := range optionCounts {
+		q := questionMap[qid]
+		if q.QuestionType != 1 && q.QuestionType != 2 {
+			continue
+		}
+		total := 0
+		for _, count := range optionCountMap {
+			total += count
+		}
+
+		var qOptions []GetOptionCount
+		if q.OtherOption {
+			qOptions = append(qOptions, GetOptionCount{
+				SerialNum: 0,
+				Content:   "其他",
+				Count:     optionCountMap[0],
+				Percent:   fmt.Sprintf("%.2f%%", float64(optionCountMap[0])*100/float64(total)),
+			})
+		}
+
+		// 排序
+		serialNums := make([]int, 0, len(optionCountMap))
+		for serial := range optionCountMap {
+			if serial != 0 {
+				serialNums = append(serialNums, serial)
+			}
+		}
+		sort.Ints(serialNums)
+
+		for _, serial := range serialNums {
+			count := optionCountMap[serial]
+			op := optionSerialNumMap[qid][serial]
+			percent := "0.00%"
+			if total > 0 {
+				percent = fmt.Sprintf("%.2f%%", float64(count)*100/float64(total))
+			}
+			qOptions = append(qOptions, GetOptionCount{
+				SerialNum: serial,
+				Content:   op.Content,
+				Count:     count,
+				Percent:   percent,
+			})
+		}
+
+		response = append(response, GetChooseStatisticsResponse{
+			SerialNum:    q.SerialNum,
+			Question:     q.Subject,
+			QuestionType: q.QuestionType,
+			Options:      qOptions,
+		})
+	}
+	// 按序号排序
+	sort.Slice(response, func(i, j int) bool {
+		return response[i].SerialNum < response[j].SerialNum
+	})
+	return response
+}
+
+// HandleChooseStatistics 导出投票结果
+func HandleChooseStatistics(survey *model.Survey, response []GetChooseStatisticsResponse) (string, error) {
+	sheets := make([]excel.Sheet, 0, len(response))
+
+	for _, stat := range response {
+		sheetName := fmt.Sprintf("第%d题", stat.SerialNum)
+		headers := []string{"选项内容", "票数", "百分比"}
+		var rows [][]any
+
+		for _, opt := range stat.Options {
+			row := []any{opt.Content, opt.Count, opt.Percent}
+			rows = append(rows, row)
+		}
+
+		sheet := excel.Sheet{
+			Name:    sheetName,
+			Headers: headers,
+			Rows:    rows,
+		}
+		sheets = append(sheets, sheet)
+	}
+
+	fileData := excel.File{Sheets: sheets}
+	fileName := survey.Title + ".xlsx"
+	filePath := "./public/xlsx/"
+
+	// 创建目录
+	if err := os.MkdirAll(filePath, 0750); err != nil {
+		return "", fmt.Errorf("创建目录失败: %v", err)
+	}
+
+	fullPath := filepath.Join(filePath, fileName)
+
+	// 删除旧文件
+	if _, err := os.Stat(fullPath); err == nil {
+		if err := os.Remove(fullPath); err != nil {
+			return "", fmt.Errorf("删除旧文件失败: %v", err)
+		}
+	}
+
+	// 创建Excel文件
+	if _, err := excel.CreateExcelFile(fileData, fileName, filePath); err != nil {
+		return "", fmt.Errorf("创建Excel文件失败: %v", err)
+	}
+
+	urlHost := GetConfigUrl()
+	url := urlHost + "/public/xlsx/" + fileName
+
+	return url, nil
 }
