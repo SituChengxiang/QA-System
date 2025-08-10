@@ -767,9 +767,8 @@ func GenerateQuestionStats(questions []model.Question, answerSheets []dao.Answer
 
 	optionCounts := make(map[int]map[int]int)
 	for _, sheet := range answerSheets {
-		for i, answer := range sheet.Answers {
+		for _, answer := range sheet.Answers {
 			options := optionsMap[answer.QuestionID]
-			println(options[i].Content)
 			question := questionMap[answer.QuestionID]
 
 			// 初始化外层 map：如果某题还没记录，先创建一个 map[int]int 作为它的值
