@@ -1,14 +1,8 @@
 package service
 
 import (
-	"bytes"
-	"image"
 	_ "image/gif" // 注册解码器
-	"image/jpeg"
 	_ "image/png" // 注册解码器
-	"io"
-	"os"
-	"path/filepath"
 	"time"
 
 	"QA-System/internal/dao"
@@ -17,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/zjutjh/WeJH-SDK/oauth"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.uber.org/zap"
 	_ "golang.org/x/image/bmp" // 注册解码器
 	_ "golang.org/x/image/tiff"
 	_ "golang.org/x/image/webp"
@@ -95,46 +88,6 @@ func CreateOauthRecord(userInfo oauth.UserInfo, t time.Time, sid int64) error {
 		Time:         t,
 	}
 	return d.SaveRecordSheet(ctx, sheet, sid)
-}
-
-// ConvertToJPEG 将图片转换为 JPEG 格式
-func ConvertToJPEG(reader io.Reader) (io.Reader, error) {
-	img, _, err := image.Decode(reader)
-	if err != nil {
-		return nil, err
-	}
-
-	var buf bytes.Buffer
-	err = jpeg.Encode(&buf, img, &jpeg.Options{Quality: 100})
-	if err != nil {
-		return nil, err
-	}
-	return bytes.NewReader(buf.Bytes()), nil
-}
-
-// SaveFile 保存文件
-func SaveFile(reader io.Reader, path string) error {
-	dst := filepath.Clean(path)
-	err := os.MkdirAll(filepath.Dir(dst), 0750)
-	if err != nil {
-		return err
-	}
-
-	// 创建文件
-	outFile, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer func(outFile *os.File) {
-		err := outFile.Close()
-		if err != nil {
-			zap.L().Error("Failed to close file", zap.Error(err))
-		}
-	}(outFile)
-
-	// 写入文件
-	_, err = io.Copy(outFile, reader)
-	return err
 }
 
 // UpdateVoteLimit 更新投票限制
