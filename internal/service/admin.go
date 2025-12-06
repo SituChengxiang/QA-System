@@ -181,10 +181,7 @@ func UpdateSurvey(id int64, question_list []dao.QuestionList, surveyType,
 	// 删除无用图片
 	for _, oldImg := range oldImgs {
 		if !contains(newImgs, oldImg) {
-			_, err = oss.Client.DeleteFile(oss.Client.GetObjectKeyFromUrl(oldImg))
-			if err != nil {
-				return err
-			}
+			_, _ = oss.Client.DeleteFile(oss.Client.GetObjectKeyFromUrl(oldImg))
 		}
 	}
 	return nil
@@ -219,17 +216,11 @@ func DeleteSurvey(id int64) error {
 		return err
 	}
 	for _, img := range imgs {
-		_, err = oss.Client.DeleteFile(oss.Client.GetObjectKeyFromUrl(img))
-		if err != nil {
-			return err
-		}
+		_, _ = oss.Client.DeleteFile(oss.Client.GetObjectKeyFromUrl(img))
 	}
 
 	for _, file := range files {
-		_, err = oss.Client.DeleteFile(oss.Client.GetObjectKeyFromUrl(file))
-		if err != nil {
-			return err
-		}
+		_, _ = oss.Client.DeleteFile(oss.Client.GetObjectKeyFromUrl(file))
 	}
 	// 删除答卷
 	err = DeleteAnswerSheetBySurveyID(id)
