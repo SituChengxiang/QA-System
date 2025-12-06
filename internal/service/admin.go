@@ -11,15 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zjutjh/WeJH-SDK/excel"
-
-	"github.com/yitter/idgenerator-go/idgen"
-
 	"QA-System/internal/dao"
 	"QA-System/internal/model"
+	"QA-System/internal/pkg/oss"
 	"QA-System/internal/pkg/utils"
 
 	"github.com/xuri/excelize/v2"
+	"github.com/yitter/idgenerator-go/idgen"
+	"github.com/zjutjh/WeJH-SDK/excel"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -131,14 +130,14 @@ func UpdateSurvey(id int64, question_list []dao.QuestionList, surveyType,
 	needNotify bool) error {
 	// 遍历原有问题，删除对应选项
 	var oldQuestions []model.Question
-	var old_imgs []string
-	new_imgs := make([]string, 0)
+	var oldImgs []string
+	newImgs := make([]string, 0)
 	// 获取原有图片
 	oldQuestions, err := d.GetQuestionsBySurveyID(ctx, id)
 	if err != nil {
 		return err
 	}
-	old_imgs, err = getOldImgs(oldQuestions)
+	oldImgs, err = getOldImgs(oldQuestions)
 	if err != nil {
 		return err
 	}
@@ -178,12 +177,11 @@ func UpdateSurvey(id int64, question_list []dao.QuestionList, surveyType,
 	if err != nil {
 		return err
 	}
-	new_imgs = append(new_imgs, imgs...)
-	urlHost := GetConfigUrl()
+	newImgs = append(newImgs, imgs...)
 	// 删除无用图片
-	for _, oldImg := range old_imgs {
-		if !contains(new_imgs, oldImg) {
-			err = os.Remove("./public/static/" + strings.TrimPrefix(oldImg, urlHost+"/public/static/"))
+	for _, oldImg := range oldImgs {
+		if !contains(newImgs, oldImg) {
+			_, err = oss.Client.DeleteFile(oss.Client.GetObjectKeyFromUrl(oldImg))
 			if err != nil {
 				return err
 			}
@@ -220,26 +218,17 @@ func DeleteSurvey(id int64) error {
 	if err != nil {
 		return err
 	}
-	urlHost := GetConfigUrl()
 	for _, img := range imgs {
-		path := "./public/static/" + strings.TrimPrefix(img, urlHost+"/public/static/")
-		info, statErr := os.Stat(path)
-		if statErr == nil && !info.IsDir() {
-			err = os.Remove(path)
-			if err != nil && !os.IsNotExist(err) {
-				return err
-			}
+		_, err = oss.Client.DeleteFile(oss.Client.GetObjectKeyFromUrl(img))
+		if err != nil {
+			return err
 		}
 	}
 
 	for _, file := range files {
-		path := "./public/file/" + strings.TrimPrefix(file, urlHost+"/public/file/")
-		info, statErr := os.Stat(path)
-		if statErr == nil && !info.IsDir() {
-			err = os.Remove(path)
-			if err != nil && !os.IsNotExist(err) {
-				return err
-			}
+		_, err = oss.Client.DeleteFile(oss.Client.GetObjectKeyFromUrl(file))
+		if err != nil {
+			return err
 		}
 	}
 	// 删除答卷
