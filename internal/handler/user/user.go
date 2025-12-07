@@ -1,14 +1,17 @@
 package user
 
 import (
+	"QA-System/internal/pkg/log"
+	"QA-System/internal/pkg/oss"
 	"errors"
-	"image"
 	"mime/multipart"
-	"path/filepath"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/zjutjh/WeJH-SDK/cube"
 
 	"QA-System/internal/dao"
 	"QA-System/internal/model"
@@ -18,7 +21,6 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"github.com/zjutjh/WeJH-SDK/oauth"
 	"github.com/zjutjh/WeJH-SDK/oauth/oauthException"
@@ -272,21 +274,26 @@ func GetSurvey(c *gin.Context) {
 	utils.JsonSuccessResponse(c, response)
 }
 
+type uploadImgData struct {
+	Img *multipart.FileHeader `form:"img" binding:"required"`
+}
+
 // UploadImg 上传图片
 func UploadImg(c *gin.Context) {
-	// 获取文件
-	fileHeader, err := c.FormFile("img")
-	if err != nil {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 10*humanize.MiByte)
+
+	var data uploadImgData
+	if err := c.ShouldBind(&data); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			code.AbortWithException(c, code.FileSizeError, err)
+			return
+		}
 		code.AbortWithException(c, code.ParamError, err)
 		return
 	}
 
-	// 检查文件大小是否超出限制
-	if fileHeader.Size > 10*humanize.MiByte {
-		code.AbortWithException(c, code.FileSizeError, err)
-		return
-	}
-
+	fileHeader := data.Img
 	file, err := fileHeader.Open()
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
@@ -299,9 +306,10 @@ func UploadImg(c *gin.Context) {
 		}
 	}(file)
 
-	reader, err := service.ConvertToJPEG(file)
-	if errors.Is(err, image.ErrFormat) {
-		code.AbortWithException(c, code.PictureError, err)
+	resp, err := oss.Client.UploadFile(fileHeader.Filename, file, "img", true, true)
+	if errors.Is(err, cube.ErrRequestBizCodeNotOK) {
+		// 直接使用 Cube 的错误信息
+		code.AbortWithException(c, code.NewError(resp.Code, log.LevelError, resp.Msg), err)
 		return
 	}
 	if err != nil {
@@ -309,44 +317,54 @@ func UploadImg(c *gin.Context) {
 		return
 	}
 
-	// 保存图片
-	filename := uuid.New().String() + ".jpg"
-	dst := filepath.Join("./public/static/", filename)
-	err = service.SaveFile(reader, dst)
-	if err != nil {
-		code.AbortWithException(c, code.ServerError, err)
-		return
-	}
-
-	url := service.GetConfigUrl() + "/public/static/" + filename
+	url := oss.Client.GetFileURL(resp.Data.ObjectKey, false)
 	utils.JsonSuccessResponse(c, url)
+}
+
+type uploadFileData struct {
+	File *multipart.FileHeader `form:"file" binding:"required"`
 }
 
 // UploadFile 上传文件
 func UploadFile(c *gin.Context) {
-	// 获取文件
-	fileHeader, err := c.FormFile("file")
-	if err != nil {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 50*humanize.MiByte)
+
+	var data uploadFileData
+	if err := c.ShouldBind(&data); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			code.AbortWithException(c, code.FileSizeError, err)
+			return
+		}
 		code.AbortWithException(c, code.ParamError, err)
 		return
 	}
 
-	// 检查文件大小是否超出限制
-	if fileHeader.Size > 50*humanize.MiByte {
-		code.AbortWithException(c, code.FileSizeError, err)
+	fileHeader := data.File
+	file, err := fileHeader.Open()
+	if err != nil {
+		code.AbortWithException(c, code.ServerError, err)
 		return
 	}
+	defer func(file multipart.File) {
+		err := file.Close()
+		if err != nil {
+			zap.L().Error("Failed to close file", zap.Error(err))
+		}
+	}(file)
 
-	// 保存文件
-	filename := uuid.New().String() + filepath.Ext(fileHeader.Filename)
-	dst := filepath.Join("./public/file/", filename)
-	err = c.SaveUploadedFile(fileHeader, dst)
+	resp, err := oss.Client.UploadFile(fileHeader.Filename, file, "file", false, true)
+	if errors.Is(err, cube.ErrRequestBizCodeNotOK) {
+		// 直接使用 Cube 的错误信息
+		code.AbortWithException(c, code.NewError(resp.Code, log.LevelError, resp.Msg), err)
+		return
+	}
 	if err != nil {
 		code.AbortWithException(c, code.ServerError, err)
 		return
 	}
 
-	url := service.GetConfigUrl() + "/public/file/" + filename
+	url := oss.Client.GetFileURL(resp.Data.ObjectKey, false)
 	utils.JsonSuccessResponse(c, url)
 }
 
